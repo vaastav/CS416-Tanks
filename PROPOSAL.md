@@ -18,6 +18,22 @@ There is prior art in the area, and some professional games such as Destiny are 
 
 In order to keep track of game state across the network, we might make use of conflict-free replicated data types, such as a vector clock. We'll have to work hard to ensure low latency, which will mean using networking tricks and whatever else is otherwise available to improve latency.
 
+# Game Mechanics
+
+We'll build a game not unlike Tanks, where players can move around and shoot at each other. The last player standing wins. Initially, our game will be very simple, without any health or stage hazards or anything. We'll grow our game mechanics as time goes on, adding things like stage hazards, status effects, and alternative goals. With this approach, we can grow the complexity to an almost arbitrary degree by adding features, but we can also scale back our ambitions if we run out of time.
+
+## Stats
+
+We'll keep track of player stats, such as a k/d ratio, using conflict-free replicated data types. This will provide a dimension of distributed systems design that is less latency-bound than the regular game mechanics.
+
+# How we'll use the cloud
+
+We'll have a centralized server for peer discovery, which will be hosted on Azure. We also plan to have a "backup" client on Azure, so that the game state persists even if no clients are online.
+
+# Technology stack
+
+We'll use go for nearly everything. We'll use a simple 2D game engine, so that we don't have to work too hard on graphics. We'll use a games library to facilitate that development, but otherwise we'll stick to relatively standard go.
+
 # Resources
 
 <https://www.cs.ubc.ca/~gberseth/projects/ArmGame/ARM%20Game%20With%20Distributed%20States%20-%20Glen%20Berseth,%20Ravjot%20%20%20%20%20%20Singh.pdf>
