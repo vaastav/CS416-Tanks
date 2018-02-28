@@ -34,6 +34,34 @@ We'll have a centralized server for peer discovery, which will be hosted on Azur
 
 We'll use go for nearly everything. We'll use a simple 2D game engine, so that we don't have to work too hard on graphics. We'll use a games library to facilitate that development, but otherwise we'll stick to relatively standard go.
 
+# SWOT Analysis
+
+## Strengths
+
+* Team members have worked with each other on the previous assignments of the course.
+
+* Team members are diligent and punctual.
+
+* All members are good at researching as well as solving potential issues.
+
+## Weaknesses
+
+* There are very limited resources available for building a low-latency distributed game.
+
+* None of the members have any prior experience with making multiplayer online games.
+
+## Opportunities
+
+* We can make the game as complex as we would like given the time limitations that would allow us to expand on the distriuted system we are aiming to make.
+
+* Conflict-Free Replicated Data Types is a very new concept for all of the members and would require a lot of work for a proper implementation.
+
+## Threats
+
+* Commitment to exams or assignments from other courses may interfere with progress.
+
+* None of us have any experience with GoVector, ShiViz or Dinv, all of which we are aiming to incorporate in our project.
+
 # Resources
 
 <https://www.cs.ubc.ca/~gberseth/projects/ArmGame/ARM%20Game%20With%20Distributed%20States%20-%20Glen%20Berseth,%20Ravjot%20%20%20%20%20%20Singh.pdf>
