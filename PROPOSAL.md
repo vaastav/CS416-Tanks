@@ -61,6 +61,20 @@ We'll have a centralized server for peer discovery, which will be hosted on Azur
 
 We'll use go for nearly everything. We'll use a simple 2D game engine, so that we don't have to work too hard on graphics. We'll use a games library to facilitate that development, but otherwise we'll stick to relatively standard go.
 
+## Limitations and Assumptions
+
+* The server will only be hosting 1 game session at any point of time.
+
+* The number of players that can join a game session has a maximum limit (which is 10).
+
+* We assume that there won't be any Byzantine failures occuring in the system. (A Byzantine fault is any fault presenting different symptoms to different observers. A Byzantine failure is the loss of a system service due to a Byzantine fault in systems that require consensus.)
+
+## Stretch Goals
+
+* Making the system Byzantine Fault tolerant. This will not be easy at all and as much as we would like to do this, it is probably not realistic to aim for this.
+
+* Improving the game to have more features like stage hazards, status effects, and alternative goals which would require a more complicated distributed state than we have initially decided.
+
 # Development Plan
 
 | Deadline | Task |
