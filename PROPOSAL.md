@@ -8,21 +8,26 @@ header-includes:
     - \fancyhead[LE, RO]{CPSC 416 Project 2 Proposal}
 geometry: margin=1in
 ---
-\pagebreak
 
-# A Distributed Game
+# Introduction
 
-We're interested in building a distributed game for our term project. We feel that this area is interesting because it introduces real-time constraints into our distributed system. Namely, a game requires low latency. Whereas the blockchain can afford to take ten minutes to confirm transactions, players might be upset if it takes ten minutes to move at all in a game.
+Video games have always been an important aspect in the lives of people as they provide an escape from reality and life problems. in the last year or so, a new genre of video games, Battle Royale, has taken over the world by storm. Video games of this genre, like Fortnite and PUBG, are essentially last-man standing games where the last player wins the game. These games typically involve altercations between players and heavy interaction with the game map. These features place a lot of restirctions on maintaining the game state like validity and consistency of the world that has been modified and making sure the players that have already been eliminated are unable to modify, but maybe view, the game state. Additionally, like any network game these games also require that each palyer has very low latency.
 
-There is prior art in the area, and some professional games such as Destiny are based on distributed systems. Clock synchronization is likely to be a topic of interest in our system, which means that we can apply some of the topics we've learned in class. We'll have to do more research on how best to match peers, which might involve a central server like in project 1, or some kind of distributed way to bootstrap into the network.
+We're interested in building a distributed game of the Battle Royale genre for our term project. We feel that this area is interesting because it introduces real-time constraints into our distributed system. As mentioned before, such a game requires low latency whereas the blockchain can afford to take ten minutes to confirm transactions, players might be upset if it takes ten minutes to move at all in a game. In addition, we also intend to have a lot of distributed state in our game.
 
-In order to keep track of game state across the network, we might make use of conflict-free replicated data types, such as a vector clock. We'll have to work hard to ensure low latency, which will mean using networking tricks and whatever else is otherwise available to improve latency.
+# Background
 
 # Game Mechanics
 
+## Basic Idea
+
 We'll build a game not unlike Tanks, where players can move around and shoot at each other. The last player standing wins. Initially, our game will be very simple, without any health or stage hazards or anything. We'll grow our game mechanics as time goes on, adding things like stage hazards, status effects, and alternative goals. With this approach, we can grow the complexity to an almost arbitrary degree by adding features, but we can also scale back our ambitions if we run out of time.
 
-## Stats
+## Peer Discovery
+
+## Clock Synchronization
+
+## Stat Collection
 
 We'll keep track of player stats, such as a k/d ratio, using conflict-free replicated data types. This will provide a dimension of distributed systems design that is less latency-bound than the regular game mechanics.
 
@@ -33,6 +38,8 @@ We'll have a centralized server for peer discovery, which will be hosted on Azur
 # Technology stack
 
 We'll use go for nearly everything. We'll use a simple 2D game engine, so that we don't have to work too hard on graphics. We'll use a games library to facilitate that development, but otherwise we'll stick to relatively standard go.
+
+# Development Plan
 
 # SWOT Analysis
 
