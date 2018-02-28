@@ -35,15 +35,27 @@ We plan to build a game not unlike Tanks (Battle City), where players can move a
 
 ## Clock Synchronization
 
+As the game is a real-time distributed system, we need to synchronize the clocks of all the clients as we do need to synchornize the events of multiple clients in order to resolve the altercations between players. We are planning to use the Berkeley Algorithm to synchornize our clocks with the server being automatically chosen as the master for the puposes of this algorithm. An example of this algorithm is shown in Figure 2.
+
+![Clock Synchronization using Berkeley Algorithm](clock-sync.jpg)
+
 ## Player Disconnections
 
 ## Stat Collection
 
-We'll keep track of player stats, such as a k/d ratio, using conflict-free replicated data types. This will provide a dimension of distributed systems design that is less latency-bound than the regular game mechanics.
+Stats are an important feature of any shooter game, let alone a Battle Royale game as it allows the players to see how well they have been doing in the game. We plan to keep track of player stats, such as a k/d (Kill / Death) amongst others by maintaining a Distributed Key/Value store using Conflict-Free Replicated Data Types. Here the key would be the username of the player (as this will be unique), and the value would be the interesting stats we would like to provide. This will provide a dimension of distributed systems design that is less latency-bound than the regular game mechanics.
 
-## How we'll use the cloud
+The operations on the stats that we will provide are as follows:
 
-We'll have a centralized server for peer discovery, which will be hosted on Azure. We also plan to have a "backup" client on Azure, so that the game state persists even if no clients are online.
+* __get(username)__ : Contacting the server to get the updated stats of a particular player
+
+* __add(username, stats)__ : Requesting the server to add a new pair of username, stats to the store
+
+* __update(username, stats)__ : Requesting the server to update the statistics of a particular player
+
+## Cloud as a Persistent Service Provider
+
+We'll have a centralized server for peer discovery, which will be hosted on Azure. We also plan to have a "backup" client on Azure, so that the game is playable by only 1 client as well.
 
 ## Technology stack
 
