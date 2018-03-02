@@ -35,6 +35,10 @@ Clients might be malicious, which means that every client has to validate the st
 
 Once we have those features built, we'll work on more interesting network topologies, like those that we built for project one. We'll also work on adding other kinds of interactions, and on optimizations to improve latency. Those optimizations might involve relaxing the global order requirement, and instead only ordering events that interact with eachother.
 
+## Packet Loss
+
+We'll use UDP to communicate between clients. This means low latency, but it also means that packets might get lost. This makes validation more complicated: what if we lose two moves a player makes, and then only receive the third one? We'll have to reason about the likelihood that a certain update is valid, given the missing data. We can't be entirely sure about this update, but with the whole network put together and over time, even with lost packets, we can establish an ordering of actions.
+
 ## Gameplay
 
 We plan to build a game not unlike Tanks (Battle City), where players can move around and shoot at each other. The last player standing wins. Initially, our game will be very simple, without any health or stage hazards or anything. We'll grow our game mechanics as time goes on, adding things like stage hazards, status effects, and alternative goals. With this approach, we can grow the complexity to an almost arbitrary degree by adding features, but we can also scale back our ambitions if we run out of time. 
