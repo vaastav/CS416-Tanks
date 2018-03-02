@@ -103,6 +103,10 @@ We'll use go for nearly everything. We'll use a simple 2D game engine, so that w
 | Apr 6    | Stress-test the game with a mix of malicious and non-malicious users; Complete report with Dinv, GoVector and ShiViz |
 | Apr 9-20 | Project Demo on a date TBD |
 
+## Testing Plan
+
+We'll approach testing in the same way that many enterprises do. We'll write our implementations against abstract interfaces, so that dependencies are inverted. By doing this, we can mock out the dependencies in various parts of the code and test various sitations. We'll keep track of code coverage and make sure to have tests covering at least 80% of our code.
+
 # SWOT Analysis
 
 ## Strengths
