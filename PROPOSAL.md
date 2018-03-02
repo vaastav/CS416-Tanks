@@ -146,3 +146,5 @@ We'll use go for nearly everything. We'll use a simple 2D game engine, so that w
 <https://en.wikipedia.org/wiki/Conflict-free_replicated_data_type>
 
 <https://en.wikipedia.org/wiki/Battle_City_(video_game)>
+
+<https://github.com/faiface/pixel>
