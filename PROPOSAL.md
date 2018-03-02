@@ -35,6 +35,8 @@ Clients might be malicious, which means that every client has to validate the st
 
 Once we have those features built, we'll work on more interesting network topologies, like those that we built for project one. We'll also work on adding other kinds of interactions, and on optimizations to improve latency. Those optimizations might involve relaxing the global order requirement, and instead only ordering events that interact with eachother.
 
+Players will send heartbeats to the other players that they are connected to. This doesn't scale well if every player is connected to every other player, but with a server we can connect clients in more interesting topologies like a hypercube or a taurus. In this configuration, players still send heartbeats to all the other players they are connected to, but those heartbeats aren't flooded through the whole network. Instead, once a player detects that one of the players it is connected to disconnects, it will flood an explicit disconnection message to the network. This means that every client will have to keep the whole graph of the network topology to detect partitions, but since each client has to keep the whole world state around, that's an acceptable cost.
+
 ## Gameplay
 
 We plan to build a game not unlike Tanks (Battle City), where players can move around and shoot at each other. The last player standing wins. Initially, our game will be very simple, without any health or stage hazards or anything. We'll grow our game mechanics as time goes on, adding things like stage hazards, status effects, and alternative goals. With this approach, we can grow the complexity to an almost arbitrary degree by adding features, but we can also scale back our ambitions if we run out of time. 
