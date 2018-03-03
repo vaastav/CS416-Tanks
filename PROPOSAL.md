@@ -4,20 +4,20 @@ header-includes:
     - \author{Jerome Rasky, Madeleine Chercover, Raunak Kumar, Vaastav Anand}
     - \usepackage{fancyhdr}
     - \pagestyle{fancy}
-    - \fancyhead[LO, RE]{Jerome Rasky, Madeline Chercover, Raunak Kumar, Vaastav Anand}
+    - \fancyhead[LO, RE]{Jerome Rasky, Madeleine Chercover, Raunak Kumar, Vaastav Anand}
     - \fancyhead[LE, RO]{CPSC 416 Project 2 Proposal}
 geometry: margin=1in
 ---
 
 # Introduction
 
-Video games have always been an important aspect in the lives of people as they provide an escape from reality and life problems. in the last year or so, a new genre of video games, Battle Royale, has taken over the world by storm. Video games of this genre, like Fortnite and PUBG, are essentially last-man standing games where the last player wins the game. These games typically involve altercations between players and heavy interaction with the game map. These features place a lot of restirctions on maintaining the game state like validity and consistency of the world that has been modified and making sure the players that have already been eliminated are unable to modify, but maybe view, the game state. Additionally, like any network game these games also require that each palyer has very low latency.
+Video games have become an important aspect of people's lives as they provide an escape from reality and life's problems. In the last year or so, a new genre of video games, battle royale, has taken the world by storm. Video games of this genre, like Fortnite and PUBG, are effectively last-man standing games: the last surviving player wins. These games typically involve altercations between players and heavy interaction with the game map. These features place a lot of demands on maintaining the game state, such as ensuring the validity and consistency of the world as it is modified and making sure that eliminated players are unable to further modify, but may view, the game state. In addition, as with any network game, there should be very low latency.
 
-We're interested in building a distributed 2D game of the Battle Royale genre for our term project. We feel that this area is interesting because it introduces real-time constraints into our distributed system. As mentioned before, such a game requires low latency whereas the blockchain can afford to take ten minutes to confirm transactions, players might be upset if it takes ten minutes to move at all in a game. In addition, we also intend to have a lot of distributed state in our game. 
+We're interested in building a distributed 2D game of the battle royale genre for our term project. We feel that this area is interesting because it introduces real-time constraints into our distributed system. As mentioned before, such a game requires low latency. Whereas the blockchain, for example, could afford to take ten minutes to confirm transactions, players will expect near-instantaneous interaction. In addition, we intend for our game to store a lot of distributed state. 
 
 # Background
 
-To build an online real-time multiplayer game, there were initially two popular architectures, shown in Figure 1, which were used in industry. The first one is the peer-to-peer architecture in which all clients start in the same initial state and each client broadcasts every  move  to  the  all  other  nodes. With  clients  communicating  directly, the gamestate can not advance until each client’s move is received by every other client.  The overall latency of the system is then dependent on the slowest client in the system. This system is also not tolerant to faulty clients, as each client will wait and decide themselves if a client has failed. The second architecture is the client-server architecture. In this architecture the gamestate is stored on a server and clients send updates to the server. This architecture reduces  latency, for each client the latency is determined by the connection between that client and the server. However, this architecture is still too slow for real-time online multiplayer games, which lead to the introduction of client-side prediction. The client-side prediction allows the client to simulate its own version of the game whilst sending the results of the moves to the server. This essentially means that each client maintains its own gamestate but this can be overriden by the server. This architecture allows for the server to detect malicious clients as well because each action by the client is being validated on the server.
+When building an online real-time multi-player game, there are two popular architectures, shown in Figure 1. The first is a peer-to-peer architecture in which all clients start in the same initial state and each client broadcasts every move to all other nodes. With clients communicating in this manner, the gamestate cannot advance until each client’s move is received by every other client. The overall latency of the system is then dependent on the slowest client in the system. This system also does not handle faulty clients well, as each client will wait and decide themselves if a client has failed. The second possible architecture is the client-server architecture. In this architecture the gamestate is stored on a server and clients send updates to the server. This architecture reduces latency, because for each client the latency is determined by the connection between that client and the server. However, this architecture is still too slow for real-time online multi-player games, which is why the idea of client-side prediction was introduced. Client-side prediction allows the client to simulate its own version of the game whilst sending the results of the moves to the server. This essentially means that each client maintains its own gamestate, but this can be overridden by the server. This architecture allows for the server to detect malicious clients as well because each action by the client is validated by the server. We will be building our system according to this second architecture.
 
 ![Network Architecture Models](network-models.jpg)
 
@@ -49,61 +49,59 @@ We'll start with a central server to keep track of peers, much like in project o
 
 ## Clock Synchronization
 
-As the game is a real-time distributed system, we need to synchronize the clocks of all the clients as we do need to synchornize the events of multiple clients in order to resolve the altercations between players. We are planning to use the Berkeley Algorithm to synchornize our clocks with the server being automatically chosen as the master for the puposes of this algorithm. An example of this algorithm is shown in Figure 2.
+As the game is a real-time distributed system, we need to synchronize the clocks of all the clients so that we can then order the events of multiple clients and resolve the altercations between players. We are planning to use the Berkeley Algorithm to synchronize clocks, with the server chosen as the master for the purposes of this algorithm. This algorithm is shown in Figure 2.
 
 ![Clock Synchronization using Berkeley Algorithm](clock-sync.jpg)
 
 ## Player Disconnections
 
-Players will send heartbeats to the other players that they are connected to. This doesn't scale well if every player is connected to every other player, but with a server we can connect clients in more interesting topologies like a hypercube or a taurus. In this configuration, players still send heartbeats to all the other players they are connected to, but those heartbeats aren't flooded through the whole network. Instead, once a player detects that one of the players it is connected to disconnects, it will flood an explicit disconnection message to the network. This means that every client will have to keep the whole graph of the network topology to detect partitions, but since each client has to keep the whole world state around, that's an acceptable cost.
+Players will send heartbeats to the other players that they are connected to. This will not scale well if each player is connected to every other player, but we can use our server to connect clients in more interesting topologies, such as a hypercube or taurus. In this configuration, players still send heartbeats to all the other players they are connected to, but those heartbeats won't be flooded throughout the entire network. Instead, only once a player detects that one of the players it is connected to disconnects will it flood an explicit disconnection message to the network. This means that every client will have to maintain a graph of the network topology to detect partitions, but since each client also has to keep track of the world state, it's an acceptable cost.
 
 ## Stat Collection
 
-Stats are an important feature of any shooter game, let alone a Battle Royale game as it allows the players to see how well they have been doing in the game. We plan to keep track of player stats, such as a k/d (Kill / Death) amongst others by maintaining a Distributed Key/Value store using Conflict-Free Replicated Data Types. Here the key would be the username of the player (as this will be unique), and the value would be the interesting stats we would like to provide. This will provide a dimension of distributed systems design that is less latency-bound than the regular game mechanics.
+Stats are an important feature of any shooter game, especially a battle royale game, as it allows the players to see how well they are performing. We plan to keep track of player stats, such as their kill/death ratio among others, by maintaining a distributed key-value store using Conflict-Free Replicated Data Types. Here the key would be the unique username of the player, and the value would be the interesting stats we would like to provide. This will provide a dimension of distributed systems design that is less latency-bound than the other game mechanics.
 
 The operations on the stats that we will provide are as follows:
 
-* __get(username)__ : Contacting the server to get the updated stats of a particular player
+* __get(username)__ : Contact the server to get the updated stats of a particular player
 
-* __add(username, stats)__ : Requesting the server to add a new pair of username, stats to the store
+* __add(username, stats)__ : Request the server to add a new pair of username, stats to the store
 
-* __update(username, stats)__ : Requesting the server to update the statistics of a particular player
+* __update(username, stats)__ : Request the server to update the statistics of a particular player
 
 ## Cloud as a Persistent Service Provider
 
-We'll have a centralized server for peer discovery, which will be hosted on Azure. We also plan to have a "backup" client on Azure, so that the game is playable by only 1 client as well.
+We'll have a centralized server for peer discovery, which will be hosted on Azure. We also plan to have a "backup" client on Azure, so that the game is playable by a single client as well.
 
 ## Technology stack
 
-We'll use go for nearly everything. We'll use a simple 2D game engine, so that we don't have to work too hard on graphics. We'll use a games library to facilitate that development, but otherwise we'll stick to relatively standard go. The external game library we will be using Pixel (https://github.com/faiface/pixel).
+We'll use Go for nearly everything. We'll also use a simple 2D game engine, Pixel, so that we don't devote too much time to graphics (https://github.com/faiface/pixel).
 
 ## Limitations and Assumptions
 
-* The server will only be hosting 1 game session at any point of time. We can always scale this up in the future.
+* The server will only host 1 game session at any point of time. We can always scale this up in the future.
 
-* The number of players that can join a game session has a maximum limit (which is 10).
-
-* We assume that there won't be any other malicious behaviour from the players other than the malicious behaviour we are accounting for.
+* The number of players that can join a game session will be limited to 10.
 
 ## Stretch Goals
 
-* Improving the game to have more features like stage hazards, status effects, and alternative goals which would require a more complicated distributed state than we have initially decided.
+* Extend the game to have more features, such as stage hazards, status effects, and alternative goals - all of which would require a more complicated distributed state than our initial design.
 
 # Development Plan
 
 | Deadline | Task |
 | :-------:    | :------------------------------------------------------------: |
 | Mar 2    | Project Proposal Draft Due |
-| Mar 9    | Project Proposal due; Finalize external libraries being used; develop a MVP for the game; learn about dinv, GoVector and ShiViz |
-| Mar 16   | Implement peer discovery, clock synchornisation and a basic version of the game that allows players to join and control their tanks |
-| Mar 23   | Implement shooting models and complete the game so that it has a winner; Also implement basic version of stats collection | 
-| Mar 30   | Implement additional features for the game as time permits. |
-| Apr 6    | Stress-test the game with a mix of malicious and non-malicious users; Complete report with Dinv, GoVector and ShiViz |
+| Mar 9    | Project Proposal due; finalize external libraries being used; develop a MVP for the game; learn about dinv, GoVector and ShiViz |
+| Mar 16   | Implement peer discovery, clock synchronization, and a basic version of the game that allows players to join and control their tanks |
+| Mar 23   | Implement shooting models and complete the game so that it has a winner; also implement basic version of stats collection | 
+| Mar 30   | Implement additional features for the game as time permits |
+| Apr 6    | Stress-test the game with a mix of malicious and non-malicious users; complete report with Dinv, GoVector, and ShiViz |
 | Apr 9-20 | Project Demo on a date TBD |
 
 ## Testing Plan
 
-We'll approach testing in the same way that many enterprises do. We'll write our implementations against abstract interfaces, so that dependencies are inverted. By doing this, we can mock out the dependencies in various parts of the code and test various sitations. We'll keep track of code coverage and make sure to have tests covering at least 80% of our code.
+We'll approach testing in the same way that many enterprises do. We'll write our implementations against abstract interfaces, so that dependencies are inverted. By doing this, we can mock out the dependencies in various parts of the code and test various scenarios. We'll keep track of code coverage and make sure to have test coverage for at least 80% of our code.
 
 # SWOT Analysis
 
@@ -113,25 +111,25 @@ We'll approach testing in the same way that many enterprises do. We'll write our
 
 * Team members are diligent and punctual.
 
-* All members are good at researching as well as solving potential issues.
+* All members are good at researching, as well as solving potential issues.
 
 ## Weaknesses
 
-* There are very limited resources available for building a low-latency distributed game.
+* There are limited resources available for building a low-latency distributed game.
 
-* None of the members have any prior experience with making multiplayer online games.
+* None of the members have any prior experience with making multi-player online games.
 
 ## Opportunities
 
-* We can make the game as complex as we would like given the time limitations that would allow us to expand on the distriuted system we are aiming to make.
+* If time permits, we can increase the complexity of the game and expand our intended distributed system.
 
-* Conflict-Free Replicated Data Types is a very new concept for all of the members and would require a lot of work for a proper implementation.
+* Conflict-Free Replicated Data Types is a new concept for all of the members and will require a lot of work to implement properly.
 
 ## Threats
 
 * Commitment to exams or assignments from other courses may interfere with progress.
 
-* None of us have any experience with GoVector, ShiViz or Dinv, all of which we are aiming to incorporate in our project.
+* None of us have any experience with GoVector, ShiViz, or Dinv, all of which we are aiming to incorporate into our project.
 
 # Resources
 
