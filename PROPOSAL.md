@@ -65,6 +65,10 @@ Players will send heartbeats to the other players that they are connected to. Th
 
 At times, network links might break such all the nodes are now no longer strongly connected. We'll assume that nodes can reach each other if they can reach the server, because otherwise the server has to participate in communication between clients. In order to increase the distributed complexity of our project, we'll focus on the case where nodes are not behind a network address translation router. Since nodes only flood disconnection events for their immediate peers, each node has to maintain an internal representation of the network topology, so that it can determine if a node disconnecting partitions the network.
 
+## Peer-to-Peer API
+
+ (TODO : We need to define it for the proposal - MADELEINE)
+
 ## Stat Collection
 
 Stats are an important feature of any shooter game, especially a battle royale game, as it allows the players to see how well they are performing. We plan to keep track of player stats, such as their kill/death ratio among others, by maintaining a distributed key-value store using Conflict-Free Replicated Data Types. Here the key would be the unique username of the player, and the value would be the interesting stats we would like to provide. This will provide a dimension of distributed systems design that is less latency-bound than the other game mechanics.
@@ -108,6 +112,38 @@ We'll use Go for nearly everything. We'll also use a simple 2D game engine, Pixe
 | Mar 30   | Implement additional features for the game as time permits |
 | Apr 6    | Stress-test the game with a mix of malicious and non-malicious users; complete report with Dinv, GoVector, and ShiViz |
 | Apr 9-20 | Project Demo on a date TBD |
+
+## Division of Labour
+
+### Jerome Rasky
+
+* Implement initial server for client discovery
+
+* Implement the front-end of the game and the gameplay.
+
+* Implement the peer-to-peer API.
+
+### Madeleine Chercover
+
+* Implement the peer-to-peer API.
+
+* Final report write-up.
+
+### Raunak Kumar
+
+* Implement CRDT for stat collection.
+
+### Vaastav Anand
+
+* Implement CRDT for stat collection.
+
+* Implement clock synchronisation amongst the players and the server.
+
+* Include and use Dinv, GoVector and ShiViz in the project
+
+### Common Tasks
+
+* Everyone will be doing testing
 
 ## Testing Plan
 
