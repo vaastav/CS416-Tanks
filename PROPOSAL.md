@@ -113,6 +113,8 @@ We'll use Go for nearly everything. We'll also use a simple 2D game engine, Pixe
 
 We'll approach testing in the same way that many enterprises do. We'll write our implementations against abstract interfaces, so that dependencies are inverted. By doing this, we can mock out the dependencies in various parts of the code and test various scenarios. We'll keep track of code coverage and make sure to have test coverage for at least 80% of our code.
 
+In general, we'll model events in the system locally by mocking out dependencies in the clients, and then we'll test in a whitebox fashion that the state update is correct. We'll test normal behavior such as moving, as well as malicious behavior such as increasing health illegally and player disconnections.
+
 # SWOT Analysis
 
 ## Strengths
