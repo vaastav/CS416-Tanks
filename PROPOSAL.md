@@ -1,7 +1,7 @@
 ---
 title: CPSC 416 Project 2 Proposal
 header-includes:
-    - \author{Jerome Rasky, Madeleine Chercover, Raunak Kumar, Vaastav Anand}
+    - \author{Jerome Rasky (g8z9a), Madeleine Chercover(f4u9a), Raunak Kumar(i4x8), Vaastav Anand(s8a9)}
     - \usepackage{fancyhdr}
     - \pagestyle{fancy}
     - \fancyhead[LO, RE]{Jerome Rasky, Madeleine Chercover, Raunak Kumar, Vaastav Anand}
@@ -100,7 +100,7 @@ We'll use Go for nearly everything. We'll also use a simple 2D game engine, Pixe
 # Development Plan
 
 | Deadline | Task |
-| :-------:    | :------------------------------------------------------------: |
+| :-------    | :------------------------------------------------------------ |
 | Mar 2    | Project Proposal Draft Due |
 | Mar 9    | Project Proposal due; finalize external libraries being used; develop a MVP for the game; learn about dinv, GoVector and ShiViz |
 | Mar 16   | Implement peer discovery, clock synchronization, and a basic version of the game that allows players to join and control their tanks |
@@ -122,6 +122,8 @@ We'll approach testing in the same way that many enterprises do. We'll write our
 * Team members are diligent and punctual.
 
 * All members are good at researching, as well as solving potential issues.
+
+* Vaastav knows Stewart who wrote Dinv and is familiar with ShiViz and GoVector.
 
 ## Weaknesses
 

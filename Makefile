@@ -1,5 +1,5 @@
 proposal.pdf: PROPOSAL.md
-	pandoc --pdf-engine=xelatex -o $@ $<
+	pandoc --pdf-engine=pdflatex -o $@ $<
 
 clean:
 	$(RM) proposal.pdf
