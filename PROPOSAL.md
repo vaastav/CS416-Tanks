@@ -69,6 +69,8 @@ At times, network links might break such all the nodes are now no longer strongl
 
 Stats are an important feature of any shooter game, especially a battle royale game, as it allows the players to see how well they are performing. We plan to keep track of player stats, such as their kill/death ratio among others, by maintaining a distributed key-value store using Conflict-Free Replicated Data Types. Here the key would be the unique username of the player, and the value would be the interesting stats we would like to provide. This will provide a dimension of distributed systems design that is less latency-bound than the other game mechanics.
 
+TODO VAS ADD SOME PICTURES
+
 The operations on the stats that we will provide are as follows:
 
 * __get(username)__ : Contact the server to get the updated stats of a particular player
