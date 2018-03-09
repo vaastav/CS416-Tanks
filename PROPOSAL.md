@@ -17,9 +17,11 @@ We're interested in building a distributed 2D game of the battle royale genre fo
 
 # Background
 
-When building an online real-time multi-player game, there are two popular architectures, shown in Figure 1. The first is a peer-to-peer architecture in which all clients start in the same initial state and each client broadcasts every move to all other nodes. With clients communicating in this manner, the gamestate cannot advance until each client’s move is received by every other client. The overall latency of the system is then dependent on the slowest client in the system. This system also does not handle faulty clients well, as each client will wait and decide themselves if a client has failed. The second possible architecture is the client-server architecture. In this architecture the gamestate is stored on a server and clients send updates to the server. This architecture reduces latency, because for each client the latency is determined by the connection between that client and the server. However, this architecture is still too slow for real-time online multi-player games, which is why the idea of client-side prediction was introduced. Client-side prediction allows the client to simulate its own version of the game whilst sending the results of the moves to the server. This essentially means that each client maintains its own gamestate, but this can be overridden by the server. This architecture allows for the server to detect malicious clients as well because each action by the client is validated by the server. We will be building our system according to this second architecture.
+When building an online real-time multi-player game, there are two popular architectures, shown in Figure 1. The first is a peer-to-peer architecture in which all clients start in the same initial state and each client broadcasts every move to all other nodes. With clients communicating in this manner, the gamestate cannot advance until each client’s move is received by every other client. The overall latency of the system is then dependent on the slowest client in the system. This system also does not handle faulty clients well, as each client will wait and decide themselves if a client has failed. The second possible architecture is the client-server architecture. In this architecture the gamestate is stored on a server and clients send updates to the server. This architecture reduces latency, because for each client the latency is determined by the connection between that client and the server. However, this architecture is still too slow for real-time online multi-player games, which is why the idea of client-side prediction was introduced. Client-side prediction allows the client to simulate its own version of the game whilst sending the results of the moves to the server. This essentially means that each client maintains its own gamestate, but this can be overridden by the server. This architecture allows for the server to detect malicious clients as well because each action by the client is validated by the server.
 
-![Network Architecture Models](network-models.jpg)
+![Network Architecture Models](network-models.jpg){width=75%}
+
+However, both of these architectures are too slow, so we will build a peer to peer model, where the server does not participate in communications between players. We will be making use of the client prediction aspects of the second architecture, but not the client-server model.
 
 \pagebreak
 
@@ -28,6 +30,8 @@ When building an online real-time multi-player game, there are two popular archi
 The minimum possible game that we can build involves players moving around, aiming, and firing within a static, fixed-size map. We'll start with that, and build our way up by adding stage hazards, more player interactions, health, lives, more weapons, and any number of other features.
 
 ## Network Architecture
+
+This game will be peer to peer. The server exists for peer discovery, but does not participate in communication between players otherwise.
 
 When players make moves, the whole network has to find out about them. The simplest possible configuration is to have every player connected to every other player, and to have all players send all their moves to every other player every time they make a move. By using clock synchronization, and a stable tie breaker such as random number generator, we can ensure a global serial order of events. Whenever a player makes a move, they send their new position to the other players, and whenever they fire they send their position and angle that they are firing at.
 
@@ -55,7 +59,11 @@ As the game is a real-time distributed system, we need to synchronize the clocks
 
 ## Player Disconnections
 
-Players will send heartbeats to the other players that they are connected to. This will not scale well if each player is connected to every other player, but we can use our server to connect clients in more interesting topologies, such as a hypercube or taurus. In this configuration, players still send heartbeats to all the other players they are connected to, but those heartbeats won't be flooded throughout the entire network. Instead, only once a player detects that one of the players it is connected to disconnects will it flood an explicit disconnection message to the network. This means that every client will have to maintain a graph of the network topology to detect partitions, but since each client also has to keep track of the world state, it's an acceptable cost.
+Players will send heartbeats to the other players that they are connected to. This will not scale well if each player is connected to every other player, but we can use our server to connect clients in more interesting topologies, such as a hypercube or taurus. We'll choose hypercube for our network. This topology has a higher number of average connections between any two distinct sets of nodes. In this configuration, players still send heartbeats to all the other players they are connected to, but those heartbeats won't be flooded throughout the entire network. Instead, only once a player detects that one of the players it is connected to disconnects will it flood an explicit disconnection message to the network. This means that every client will have to maintain a graph of the network topology to detect partitions, but since each client also has to keep track of the world state, it's an acceptable cost.
+
+## Partition Detection
+
+At times, network links might break such all the nodes are now no longer strongly connected. We'll assume that nodes can reach each other if they can reach the server, because otherwise the server has to participate in communication between clients. In order to increase the distributed complexity of our project, we'll focus on the case where nodes are not behind a network address translation router. Since nodes only flood disconnection events for their immediate peers, each node has to maintain an internal representation of the network topology, so that it can determine if a node disconnecting partitions the network.
 
 ## Stat Collection
 
