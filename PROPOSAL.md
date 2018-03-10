@@ -73,17 +73,17 @@ The API for communication between player nodes will be defined as follows:
 
 ## Stat Collection
 
-As in any shooter game, stats are important for a player to see how well they are fairing. We intend to track a number of player stats, including their health and kill/death ratio. To do so, we will maintain a distributed key-value store using conflict-free replicated data types [6]. The key will be the unique player id and the value the stats we would like to provide and maintain. This will add a dimension to our distributed system design that is less latency-bound than the other specifications outlined above.
+As in any shooter game, stats are important for a player to see how well they are fairing. We intend to track a number of player stats, including their health and kill/death ratio. To do so, we will maintain a distributed key-value store using Vector Clocks, a type of conflict-free replicated data type[6] to guarantee eventual consistency. The key will be the unique player id and the value the stats we would like to provide and maintain. This will add a dimension to our distributed system design that is less latency-bound than the other specifications outlined above.
 
 *TODO VAS ADD SOME PICTURES*
 
 The operations on the stats that we will provide are as follows:
 
-* __stats, err ← Get(playerId)__ : Contact the server to get the updated stats of a particular player
+* __stats, err ← Get(playerId)__ : Contact the neighbour peers to get the updated stats of a particular player
 
-* __err ← Add(playerId, stats)__ : Request the server to add a new pair of username, stats to the store
+* __err ← Add(playerId, stats)__ : Contact the neighbour peers to add a new pair of username, stats to the store
 
-* __err ← Update(playerId, stats)__ : Request the server to update the statistics of a particular player
+* __err ← Update(playerId, stats)__ : Contact the neighour peers to update the statistics of a particular player
 
 ## Limitations and Assumptions
 
@@ -154,13 +154,21 @@ Outlined below are the tasks for which each group member will be responsible. So
 We intend to approach testing in the same way that many enterprises do: by writing our implementations against abstract interfaces so that dependencies are inverted. In doing so, we can then mock out the dependencies in our code and test multiple scenarios. We will track code coverage and ensure test coverage for at least 80% of the code.
 
 More specifically, we will mock out dependencies locally and then test that the game-state updates as expected when, for example:
+
 * The player moves
+
 * The player shoots, and no other player is in the path of its shot
+
 * The player shoots and one or more players are in the path of its shot
+
 * The player is shot by another player
+
 In addition, we will test that the game state correctly handles malicious node updates, such as when:
+
 * A player sends an update saying that it shot along an invalid trajectory based on its position
+
 * A player sends an update saying that it moved to a position that is unreasonable given its last known position
+
 Finally, we will also test transitory disconnections.
 
 # SWOT Analysis
