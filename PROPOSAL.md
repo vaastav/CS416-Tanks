@@ -11,7 +11,7 @@ geometry: margin=1in
 
 # Introduction
 
-Video games have become an important aspect of people's lives as they provide an escape from reality. Recently, a new genre of video games, battle royale, has become increasingly popular. Video games of this genre are effectively last-man standing games – the last surviving player wins. These games typically involve altercations between players and heavy interaction with the game map. Such features place a lot of demands on maintaining the game state, such as ensuring the consistency of the world as it is modified and making sure that eliminated players are unable to further modify, but may view, the game state. In addition, as with any network game, there must be very low latency.
+Video games have become an important aspect of people's lives as they provide an escape from reality. Recently, a new genre of video games, battle royale, has become increasingly popular. Video games of this genre are effectively last-man standing games – the last surviving player wins. These games typically involve altercations between players and heavy interaction with the game map. Such features place a lot of demands on maintaining the game state, such as ensuring the consistency of the world as it is modified and making sure that eliminated players are unable to further alter, but may view, the game state. In addition, as with any network game, there must be very low latency.
 
 We are interested in building a distributed 2D game of the battle royale genre for our term project. Players will move, aim, and fire, within a shared, fixed-size map; the last player standing wins. We feel that this concept is interesting as it introduces real-time constraints into our distributed system. As mentioned above, such a game requires low latency. Whereas the blockchain, for example, could afford to take ten minutes to confirm transactions, players will expect near-instantaneous interaction. Moreover, we intend for our game to store a great deal of distributed state.
 
@@ -29,11 +29,11 @@ The second (2) common architecture is a client-server architecture. In this arch
 
 ## Network Architecture
 
-For our purposes, architectures (1) and (2) as outlined above are too slow. We will thus combine aspects of the two architectures. We will use peer-to-peer communication as in architecture (1), but each player node will only broadcast their state to a subset of the network, as the miners did in project 1. There will also be a server, as is the case in architecture (2), however that server will not participate in communication between player nodes. It will exist solely for the purposes of peer discovery and clock synchronization (detailed below). Moreover, player nodes will employ client-side prediction as is used in architecture (2).
+For our purposes, architectures (1) and (2) as outlined above are too slow. We will thus combine aspects of the two architectures. We will use peer-to-peer communication as in architecture (1), but each player node will only broadcast their state to a subset of the network, much like the miners did in project 1. There will also be a server, as is the case in architecture (2). However that server will not participate in communication between player nodes. Instead, it will exist solely for the purposes of peer discovery and clock synchronization (detailed below). Moreover, player nodes will employ client-side prediction as is used in architecture (2).
 
 ## Peer Discovery
 
-The server, which will be hosted on Azure, will exist for the purpose of (1) assigning a unique id to new players, and (2) keeping track of peers in the network, similarly to the server in project one. When a player node joins, it will receive addresses for a subset of all peers from the server. The player node will then maintain a minimum number of peers, making requests to the server for more peers as needed. In addition, there will be a 'backup' client on Azure, so that the game is playable with a single client as well.
+The server, which will be hosted on Azure, will exist for the purpose of (1) assigning a unique id to new players, and (2) providing the addresses of nodes in the network, similarly to the server in project one. When a player node joins, it will receive addresses for a subset of all player nodes from the server. The player node will then maintain a minimum number of peers, making requests to the server for more peers as needed. In addition, there will be a 'backup' client on Azure, so that the game is playable with a single client as well.
 
 ## Peer-to-Peer Communication
 
