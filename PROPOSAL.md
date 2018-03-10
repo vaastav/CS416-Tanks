@@ -47,7 +47,7 @@ We will use the User Datagram Protocol (UDP) for communication between player no
 
 ## Clock Synchronization
 
-Given that our proposed game is a real-time distributed system, with each player broadcasting its moves and shots, we need a method by which to order the updates of multiple player nodes and thereby resolve altercations between players. We will use clock synchronization among all player nodes, along with a random ID as a tie-breaker, to ensure a global serial order of events. So as to ensure that a player node does not process a received event and update its game-state before an ordering has been determined, player nodes will buffer events for 1 second.  
+Given that our proposed game is a real-time distributed system, with each player broadcasting its moves and shots, we need a method by which to order the updates of multiple player nodes and thereby resolve altercations between players. We will use clock synchronization among all player nodes to ensure a global serial order of events. A new event will also be buffered for 1 second. If, during that timeframe, another event with an equal timestamp is received, then the two events' randomly generated IDs will be used as a tiebreaker to determine the order. Otherwise, after 1 second, we will assume that the game state has converged and that the event is non-conflicting. Note that while an event may be buffered on the backend, it will be drawn immediately on the frontend upon receipt.
 
 More specifically, we will use the Berkeley Algorithm to synchronize clocks, with the server chosen as the master for the purposes of this algorithm [4]. This algorithm is shown in Figure 2 below.
 
@@ -63,7 +63,7 @@ If a previously disconnected node succeeds in reconnecting, the player node shou
 
 The API for communication between player nodes will be defined as follows:
 
-* __err ← RegisterPeer(address)__ : Notifies a player node of a peer that it should begin sending heartbeats to at `address`.
+* __err ← RegisterPeer(address)__ : Notifies a player node of a peer that it should begin sending heartbeats to the node at `address`.
 
 * __err ← Heartbeat()__ : Player nodes listen for heartbeats from the subset of nodes that they are connected to. A player node expects to receive a heartbeat every 2 seconds.
 
