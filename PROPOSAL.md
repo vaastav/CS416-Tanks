@@ -73,9 +73,17 @@ The API for communication between player nodes will be defined as follows:
 
 ## Stat Collection
 
-As in any shooter game, stats are important for a player to see how well they are fairing. We intend to track a number of player stats, including their health and kill/death ratio. To do so, we will maintain a distributed key-value store using Vector Clocks, a type of conflict-free replicated data type[6] to guarantee eventual consistency. The key will be the unique player id and the value the stats we would like to provide and maintain. This will add a dimension to our distributed system design that is less latency-bound than the other specifications outlined above.
+As in any shooter game, stats are important for a player to see how well they are fairing. We intend to track a number of player stats, including their health and kill/death ratio. To do so, we will maintain a distributed key-value store using Vector Clocks[10], a type of conflict-free replicated data type[6] to guarantee eventual consistency. The key will be the unique player id and the value the stats we would like to provide and maintain. This will add a dimension to our distributed system design that is less latency-bound than the other specifications outlined above.
 
-*TODO VAS ADD SOME PICTURES*
+### Stat Collection Protocol
+
+* When the player connects to its neighbour peers, it gets a list of all player IDs that are in the current game. It does an update for every unique player ID to get up to date stats for every player in its session.
+
+* When a player dies or wins the game, it updates its own stats across the network by sending updates to its neighbours. If it gets disconnected then later rejoins the same game, it doesn't need to update its stats across the netowrk. However, it would need to update the stats if the player has been moved to a new game.
+
+* After a player completes its first game, it would need to add itself in the stats store of its peers.
+
+### Stat Collection API
 
 The operations on the stats that we will provide are as follows:
 
@@ -84,6 +92,10 @@ The operations on the stats that we will provide are as follows:
 * __err ← Add(playerId, stats)__ : Contact the neighbour peers to add a new pair of username, stats to the store
 
 * __err ← Update(playerId, stats)__ : Contact the neighour peers to update the statistics of a particular player
+
+Other API calls necessary to facilitate smooth stat collection:
+
+* __playerIDs, err ← GetPlayerIDs()__ : Contact the neighbour peers to get the list of all player IDs in the game currently. 
 
 ## Limitations and Assumptions
 
@@ -100,6 +112,8 @@ The operations on the stats that we will provide are as follows:
 * __Handle network partitions:__ A network is partitioned if one subgraph of the network is no longer reachable from another subgraph. Partitions are particularly problematic for a distributed game such as this, as it results in one subset of players' updates not appearing in another subset of players' game. Handling partitions raises two seemingly complex questions: (1) how will nodes detect that there is a partition, and (2) how will nodes know which nodes to connect to so as to resolve the partition?
 
 * __Increase the number of player nodes:__ We have initially limited the maximum number of player nodes to 20 because we think that no more than that number of players could reasonably be depicted on a single map. To increase the number of player nodes, we would need to: (1) expand the map and (2) have only a local subsection of the map visible to a player. This would, we think, mostly entail frontend changes but would be interesting inasmuch as it would enable us to expand the size of the system.  
+
+* __Application to display full stats:__ We also could make a full application that displays the complete overall stats of all the players around the world. This mostly seems out of the project though but pretty cool to do in the future.
 
 ## Technology stack
 
@@ -220,3 +234,5 @@ Finally, we will also test transitory disconnections.
 [8] <https://github.com/faiface/pixel>
 
 [9] <https://www.cs.helsinki.fi/webfm_send/1232>
+
+[10] <https://en.wikipedia.org/wiki/Vector_clock>
