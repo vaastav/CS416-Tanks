@@ -17,11 +17,11 @@ We are interested in building a distributed 2D game of the battle royale genre f
 
 # Background
 
-When building an online real-time multi-player game, there are two popular architectures, shown in Figure 1. The first (1) is a peer-to-peer architecture in which all clients start in the same initial state and then broadcast each of their moves to all other nodes. With clients communicating in this manner, however, the game-state cannot advance until each client’s move is received by every other client. The overall latency of the system is then dependent on the slowest client in the system. In addition, such a system does not handle failing clients well, as each client must wait and decide if a client has failed.
+When building an online real-time multi-player game, there are two popular architectures, shown in Figure 1 [1]. The first (1) is a peer-to-peer architecture in which all clients start in the same initial state and then broadcast each of their moves to all other nodes. With clients communicating in this manner, however, the game-state cannot advance until each client’s move is received by every other client. The overall latency of the system is then dependent on the slowest client in the system. In addition, such a system does not handle failing clients well, as each client must wait and decide if a client has failed.
 
 The second (2) common architecture is a client-server architecture. In this architecture the game-state is stored on a server and clients send updates to the server. This architecture reduces latency, as latency for each client is determined by the connection between that client and the server. A client-server architecture of this kind is still too slow for real-time online multi-player games, however. This is why the notion of client-side prediction was introduced. Client-side prediction allows a client to simulate its own version of the game while sending the results of its moves to the server. In effect, each client maintains its own game-state. The server may then override that state, as it validates each client action.   
 
-![Network Architecture Models (10)](network-models.jpg){width=75%}
+![Network Architecture Models (1)](network-models.jpg){width=75%}
 
 \pagebreak
 
@@ -48,7 +48,7 @@ We will use the User Datagram Protocol (UDP) for communication between player no
 
 Given that our proposed game is a real-time distributed system, with each player broadcasting its moves and shots, we need a method by which to order the updates of multiple player nodes and thereby resolve altercations between players. We will use clock synchronization among all player nodes, along with a random number generator as a tie-breaker, to ensure a global serial order of events. So as to ensure that a player node does not process a received event and update its game-state before an ordering has been determined, player nodes will buffer events for 1 second.  
 
-More specifically, we will use the Berkeley Algorithm to synchronize clocks, with the server chosen as the master for the purposes of this algorithm. This algorithm is shown in Figure 2 below.
+More specifically, we will use the Berkeley Algorithm to synchronize clocks, with the server chosen as the master for the purposes of this algorithm [4]. This algorithm is shown in Figure 2 below.
 
 ![Clock Synchronization using the Berkeley Algorithm (9)](clock-sync.jpg){width=75%}
 
@@ -74,7 +74,7 @@ The API for communication between player nodes will be defined as follows:
 
 ## Stat Collection
 
-As in any shooter game, stats are important for a player to see how well they are fairing. We intend to track a number of player stats, including their health and kill/death ratio. To do so, we will maintain a distributed key-value store using conflict-free replicated data types [6]. The key will be the unique player id and the value, the stats we would like to provide and maintain. This will add a dimension to our distributed system design that is less latency-bound than the other specifications outlined above.
+As in any shooter game, stats are important for a player to see how well they are fairing. We intend to track a number of player stats, including their health and kill/death ratio. To do so, we will maintain a distributed key-value store using conflict-free replicated data types [6]. The key will be the unique player id and the value the stats we would like to provide and maintain. This will add a dimension to our distributed system design that is less latency-bound than the other specifications outlined above.
 
 *TODO VAS ADD SOME PICTURES*
 
@@ -215,5 +215,3 @@ Finally, we will also test transitory disconnections.
 [8] <https://github.com/faiface/pixel>
 
 [9] <https://www.cs.helsinki.fi/webfm_send/1232>
-
-[10] <https://www.safaribooksonline.com/library/view/killer-game-programming/0596007302/ch29s03.html>
