@@ -35,6 +35,14 @@ For our purposes, architectures (a) and (b) as outlined above are too slow. We w
 
 The server, which will be hosted on Azure, will exist for the purpose of (1) assigning a unique id to new players, and (2) providing the addresses of nodes in the network, similarly to the server in project one. When a player node joins, it will receive addresses for a subset of all player nodes from the server. The player node will then maintain a minimum number of peers, making requests to the server for more peers as needed. In addition, there will be a 'backup' of the game-state stored on Azure as well.
 
+## Server API
+
+The API for communication with the server will be defined as follows:
+
+* __playerId, err ← Register(address)__ : Registers the given player node address with the server and returns a unique ID.
+
+* __addrSet, err ← GetPeers()__ : Returns addresses for a subset of player nodes in the system.
+
 ## Peer-to-Peer Communication
 
 When a player moves or shoots, the entire network must know. Thus, a player node will broadcast its updates to its known set of peer nodes, which will then broadcast it to theirs and so on, thereby flooding the update to the network. As noted above, this mirrors the way in which new blocks were shared among all miner nodes in project 1. Moreover, each player node will validate each received update. As our game consists only of moving and firing, those validation checks will be simple. A player node will verify:  
@@ -71,9 +79,15 @@ The API for communication between player nodes will be defined as follows:
 
 * __err ← NotifyEvent(playerId, event)__ : Notifies that the player node with id `playerId` has either moved or fired. The player node receiving this call will flood it to its peers.
 
+## Player Node States
+
+A player node will have four workers, as depicted in Figure 3 below. The peer worker will ensure that the node maintains a minimum number of connections. The user input worker will wait on input from the player associated with this player node. The draw worker will draw events upon receipt. The validate worker is particularly integral: it will receive events from both the player associated with this node and other peers, and perform validation on those events.  
+
+![Player Node States](client-states.jpg){width=75%}
+
 ## Stat Collection
 
-As in any shooter game, stats are important for a player to see how well they are fairing. We intend to track a number of player stats, including their health and kill/death ratio. To do so, we will maintain a distributed key-value store using Vector Clocks[10], a type of conflict-free replicated data type[6] to guarantee eventual consistency. The key will be the unique player id and the value the stats we would like to provide and maintain. This will add a dimension to our distributed system design that is less latency-bound than the other specifications outlined above.
+As in any shooter game, stats are important for a player to see how well they are fairing. We intend to track a number of player stats, including their health and kill/death ratio. To do so, we will maintain a distributed key-value store using vector clocks [10], a type of conflict-free replicated data type [6] to guarantee eventual consistency. The key will be the unique player id and the value the stats we would like to provide and maintain. This will add a dimension to our distributed system design that is less latency-bound than the other specifications outlined above.
 
 ### Stat Collection Protocol
 
@@ -87,15 +101,15 @@ As in any shooter game, stats are important for a player to see how well they ar
 
 The operations on the stats that we will provide are as follows:
 
-* __stats, err ← Get(playerId)__ : Contact the neighbour peers to get the updated stats of a particular player
+* __stats, err ← Get(playerId)__ : Contact the neighbour peers to get the updated stats of a particular player.
 
-* __err ← Add(playerId, stats)__ : Contact the neighbour peers to add a new pair of username, stats to the store
+* __err ← Add(playerId, stats)__ : Contact the neighbour peers to add a new pair of username, stats to the store.
 
-* __err ← Update(playerId, stats)__ : Contact the neighour peers to update the statistics of a particular player
+* __err ← Update(playerId, stats)__ : Contact the neighour peers to update the statistics of a particular player.
 
 Other API calls necessary to facilitate smooth stat collection:
 
-* __playerIDs, err ← GetPlayerIDs()__ : Contact the neighbour peers to get the list of all player IDs in the game currently. 
+* __playerIDs, err ← GetPlayerIDs()__ : Contact the neighbour peers to get the list of all player IDs in the game currently.
 
 ## Limitations and Assumptions
 
