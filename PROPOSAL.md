@@ -21,7 +21,7 @@ When building an online real-time multi-player game, there are two popular archi
 
 The second (2) common architecture is a client-server architecture. In this architecture the game-state is stored on a server and clients send updates to the server. This architecture reduces latency, as latency for each client is determined by the connection between that client and the server. A client-server architecture of this kind is still too slow for real-time online multi-player games, however. This is why the notion of client-side prediction was introduced. Client-side prediction allows a client to simulate its own version of the game while sending the results of its moves to the server. In effect, each client maintains its own game-state. The server may then override that state, as it validates each client action.   
 
-![Network Architecture Models](network-models.jpg){width=75%} __TODO: CITE DIAGRAM__
+![Network Architecture Models (10)](network-models.jpg){width=75%}
 
 \pagebreak
 
@@ -215,3 +215,5 @@ Finally, we will also test transitory disconnections.
 [8] <https://github.com/faiface/pixel>
 
 [9] <https://www.cs.helsinki.fi/webfm_send/1232>
+
+[10] <https://www.safaribooksonline.com/library/view/killer-game-programming/0596007302/ch29s03.html>
