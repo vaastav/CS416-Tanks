@@ -33,20 +33,21 @@ For our purposes, architectures (a) and (b) as outlined above are too slow. We w
 
 ## Peer Discovery
 
-The server, which will be hosted on Azure, will exist for the purpose of (1) assigning a unique id to new players, and (2) providing the addresses of nodes in the network, similarly to the server in project one. When a player node joins, it will receive addresses for a subset of all player nodes from the server. The player node will then maintain a minimum number of peers, making requests to the server for more peers as needed. In addition, there will be a 'backup' client on Azure, so that the game is playable with a single client as well.
+The server, which will be hosted on Azure, will exist for the purpose of (1) assigning a unique id to new players, and (2) providing the addresses of nodes in the network, similarly to the server in project one. When a player node joins, it will receive addresses for a subset of all player nodes from the server. The player node will then maintain a minimum number of peers, making requests to the server for more peers as needed. In addition, there will be a 'backup' of the game-state stored on Azure as well.
 
 ## Peer-to-Peer Communication
 
-When a player moves or shoots, the entire network must know. Thus, a player node will broadcast its updates to its known set of peer nodes, which will then broadcast it to theirs and so on, thereby flooding the update to the network. As noted above, this mirrors the way in which new blocks were shared among all miner nodes in project 1. Moreover, each player node will validate each received update. As our game consists only of moving and firing, those validation checks will be simple. A player node will verify:
-(1) That the updated position of another player is within the bounds of the permitted movement speed.
-(2) That the position from which a player fires matches that player's current position.
+When a player moves or shoots, the entire network must know. Thus, a player node will broadcast its updates to its known set of peer nodes, which will then broadcast it to theirs and so on, thereby flooding the update to the network. As noted above, this mirrors the way in which new blocks were shared among all miner nodes in project 1. Moreover, each player node will validate each received update. As our game consists only of moving and firing, those validation checks will be simple. A player node will verify:  
+(1) That the updated position of another player is within the bounds of the permitted movement speed.  
+(2) That the position from which a player fires matches that player's current position.  
+(3) That the player is not dead (i.e. has greater than 0 health)  
 In this context, a 'malicious' player node would be one that emits updates that violate these requirements. Thus these verifications will guard against malicious nodes and throw out any illegal game updates.  
 
 We will use the User Datagram Protocol (UDP) for communication between player nodes. This will give us lower latency, however it also opens up the risk that packets may be lost. This complicates validation. What if, for instance, we lose the first two moves that a player makes and only succeed in broadcasting the third? In validating player actions, we will therefore reason about the probability that a particular action legally occurred.
 
 ## Clock Synchronization
 
-Given that our proposed game is a real-time distributed system, with each player broadcasting its moves and shots, we need a method by which to order the updates of multiple player nodes and thereby resolve altercations between players. We will use clock synchronization among all player nodes, along with a random number generator as a tie-breaker, to ensure a global serial order of events. So as to ensure that a player node does not process a received event and update its game-state before an ordering has been determined, player nodes will buffer events for 1 second.  
+Given that our proposed game is a real-time distributed system, with each player broadcasting its moves and shots, we need a method by which to order the updates of multiple player nodes and thereby resolve altercations between players. We will use clock synchronization among all player nodes, along with a random ID as a tie-breaker, to ensure a global serial order of events. So as to ensure that a player node does not process a received event and update its game-state before an ordering has been determined, player nodes will buffer events for 1 second.  
 
 More specifically, we will use the Berkeley Algorithm to synchronize clocks, with the server chosen as the master for the purposes of this algorithm [4]. This algorithm is shown in Figure 2 below.
 
@@ -56,21 +57,19 @@ More specifically, we will use the Berkeley Algorithm to synchronize clocks, wit
 
 Player nodes will receive heartbeats from the set of clients that they received from the server upon joining. Were each node connected to every other node, this would scale poorly. However, as is detailed above, player nodes will only be connected to a subset of all nodes. Thus, a player node will receive heartbeats from the nodes it is connected to, but those heartbeats will not be flooded throughout the entire network. Only once a player node detects that one of its peers has disconnected will it then flood a disconnection notification throughout the network. That player would then no longer be visible by any client on the game map.
 
-If a previously disconnected node succeeds in reconnecting, the player node should then be able to resume the game with its previous state. This is because that player's last position and accompanying stats are stored by that player node and across all nodes, mapped to its server-assigned id. The reconnected player would then be visible again on the game map. While transitory disconnections will be handled by our system, as is described here, the failure of a player node will be irrecoverable.      
+If a previously disconnected node succeeds in reconnecting, the player node should then be able to resume the game with its previous state. This is because that player's last position and accompanying stats are stored by that player node and across all nodes, mapped to its server-assigned id. The reconnected player would then be visible again on the game map. While transitory disconnections will be handled by our system, as is described here, the failure of a player node would require it to rejoin as a new player.      
 
 ## Peer-to-Peer API
 
 The API for communication between player nodes will be defined as follows:
 
+* __err ← RegisterPeer(address)__ : Notifies a player node of a peer that it should begin sending heartbeats to at `address`.
+
 * __err ← Heartbeat()__ : Player nodes listen for heartbeats from the subset of nodes that they are connected to. A player node expects to receive a heartbeat every 2 seconds.
 
 * __err ← NotifyFailure(playerId)__ : Notifies that the player node with id `playerId` has disconnected. The player node receiving this call will flood it to its peers.
 
-* __err ← Update(playerId, stats)__ : Notifies that the player node with id `playerId` has an updated set of associated statistics `stats` – that is, position, shot trajectory, health. The player node receiving this call will flood it to its peers.
-
-* __stats, err ← Get(playerId)__ : *TODO Vaastav*
-
-* __err ← Add(playerId, stats)__ : *TODO Vaastav*
+* __err ← NotifyEvent(playerId, event)__ : Notifies that the player node with id `playerId` has either moved or fired. The player node receiving this call will flood it to its peers.
 
 ## Stat Collection
 
@@ -79,8 +78,6 @@ As in any shooter game, stats are important for a player to see how well they ar
 *TODO VAS ADD SOME PICTURES*
 
 The operations on the stats that we will provide are as follows:
-
-// Madeleine: I added the operations above since it sounds like they'll be part of the peer-to-peer API. Correct it if that's // wrong.
 
 * __stats, err ← Get(playerId)__ : Contact the server to get the updated stats of a particular player
 
