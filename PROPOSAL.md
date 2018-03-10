@@ -21,7 +21,7 @@ When building an online real-time multi-player game, there are two popular archi
 
 The second (b) common architecture is a client-server architecture. In this architecture the game-state is stored on a server and clients send updates to the server. This architecture reduces latency, as latency for each client is determined by the connection between that client and the server. A client-server architecture of this kind is still too slow for real-time online multi-player games, however. This is why the notion of client-side prediction was introduced. Client-side prediction allows a client to simulate its own version of the game while sending the results of its moves to the server. In effect, each client maintains its own game-state. The server may then override that state, as it validates each client action.   
 
-![Network Architecture Models (1)](network-models.jpg){width=75%}
+![Network Architecture Models [1]](network-models.jpg){width=75%}
 
 \pagebreak
 
@@ -48,7 +48,7 @@ The API for communication with the server will be defined as follows:
 When a player moves or shoots, the entire network must know. Thus, a player node will broadcast its updates to its known set of peer nodes, which will then broadcast it to theirs and so on, thereby flooding the update to the network. As noted above, this mirrors the way in which new blocks were shared among all miner nodes in project 1. Moreover, each player node will validate each received update. As our game consists only of moving and firing, those validation checks will be simple. A player node will verify:  
 (1) That the updated position of another player is within the bounds of the permitted movement speed.  
 (2) That the position from which a player fires matches that player's current position.  
-(3) That the player is not dead (i.e. has greater than 0 health)  
+(3) That the player is not dead (i.e. has greater than 0 health).  
 In this context, a 'malicious' player node would be one that emits updates that violate these requirements. Thus these verifications will guard against malicious nodes and throw out any illegal game updates.  
 
 We will use the User Datagram Protocol (UDP) for communication between player nodes. This will give us lower latency, however it also opens up the risk that packets may be lost. This complicates validation. What if, for instance, we lose the first two moves that a player makes and only succeed in broadcasting the third? In validating player actions, we will therefore reason about the probability that a particular action legally occurred.
@@ -59,7 +59,7 @@ Given that our proposed game is a real-time distributed system, with each player
 
 More specifically, we will use the Berkeley Algorithm to synchronize clocks, with the server chosen as the master for the purposes of this algorithm [4]. This algorithm is shown in Figure 2 below.
 
-![Clock Synchronization using the Berkeley Algorithm (9)](clock-sync.jpg){width=75%}
+![Clock Synchronization using the Berkeley Algorithm [9]](clock-sync.jpg){width=75%}
 
 ## Player Disconnections
 
@@ -149,13 +149,13 @@ Go will be used for most, if not all, aspects of this project. So as to avoid de
 
 Outlined below are the tasks for which each group member will be responsible. Some tasks will be shared between two members. Testing will be handled by all four members.
 
-### Vaastav Anand
+### Jerome Rasky
 
-* Implement CRDT for stat collection.
+* Implement initial server for client discovery.
 
-* Implement clock synchronization amongst the players and the server.
+* Implement the front-end of the game and the gameplay.
 
-* Include and use Dinv, GoVector and ShiViz in the project.
+* Implement the peer-to-peer API.
 
 ### Madeleine Chercover
 
@@ -169,13 +169,13 @@ Outlined below are the tasks for which each group member will be responsible. So
 
 * Include and use Dinv, GoVector and ShiViz in the project.
 
-### Jerome Rasky
+### Vaastav Anand
 
-* Implement initial server for client discovery.
+* Implement CRDT for stat collection.
 
-* Implement the front-end of the game and the gameplay.
+* Implement clock synchronization amongst the players and the server.
 
-* Implement the peer-to-peer API.
+* Include and use Dinv, GoVector and ShiViz in the project.
 
 ## Testing Plan
 
