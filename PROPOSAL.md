@@ -1,5 +1,5 @@
 ---
-title: CPSC 416 Project 2 Proposal
+title: Battle Tanks
 header-includes:
     - \author{Jerome Rasky (g8z9a), Madeleine Chercover(f4u9a), Raunak Kumar(i4x8), Vaastav Anand(s8a9)}
     - \usepackage{fancyhdr}
@@ -56,6 +56,10 @@ We'll start with a central server to keep track of peers, much like in project o
 As the game is a real-time distributed system, we need to synchronize the clocks of all the clients so that we can then order the events of multiple clients and resolve the altercations between players. We are planning to use the Berkeley Algorithm to synchronize clocks, with the server chosen as the master for the purposes of this algorithm. This algorithm is shown in Figure 2.
 
 ![Clock Synchronization using Berkeley Algorithm](clock-sync.jpg)
+
+## Player Normal Behaviour
+
+## Player Malicious Behaviour
 
 ## Player Disconnections
 
@@ -132,6 +136,8 @@ We'll use Go for nearly everything. We'll also use a simple 2D game engine, Pixe
 ### Raunak Kumar
 
 * Implement CRDT for stat collection.
+
+* Include and use Dinv, GoVector and ShiViz in the project
 
 ### Vaastav Anand
 
