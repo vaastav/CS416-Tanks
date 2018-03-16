@@ -250,3 +250,5 @@ Finally, we will also test transitory disconnections.
 [9] <https://www.cs.helsinki.fi/webfm_send/1232>
 
 [10] <https://en.wikipedia.org/wiki/Vector_clock>
+
+[11] <https://opengameart.org/content/animated-top-down-survivor-player>
