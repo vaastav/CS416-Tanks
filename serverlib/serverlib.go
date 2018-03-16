@@ -54,3 +54,13 @@ func (r *RPCServerAPI) Register(address net.Addr, display_name string) (peerclie
 
 	return settings, nil
 }
+
+func (r *RPCServerAPI) Connect(settings peerclientlib.PeerNetSettings) (bool, error) {
+	var ack bool
+	
+	if err := r.doApiCall("TankServer.Connect", &settings, &ack); err != nil {
+		return false, err
+	}
+
+	return ack, nil
+}
