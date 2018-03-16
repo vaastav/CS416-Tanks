@@ -65,7 +65,7 @@ func run() {
 
 		imd.Clear()
 
-		lineLength := win.Bounds().Max.Len()
+		lineLength := win.Bounds().Max.Sub(win.Bounds().Min).Len()
 
 		endPoint := mousePosition.Scaled(lineLength / mousePosition.Len()).Add(win.Bounds().Center())
 
