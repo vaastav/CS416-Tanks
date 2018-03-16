@@ -67,7 +67,7 @@ func run() {
 
 		lineLength := win.Bounds().Max.Sub(win.Bounds().Min).Len()
 
-		endPoint := mousePosition.Scaled(lineLength / mousePosition.Len()).Add(win.Bounds().Center())
+		endPoint := mousePosition.Scaled(lineLength / mousePosition.Len()).Add(playerPos)
 
 		imd.Color = colornames.Darkred
 		imd.Push(playerPos, endPoint)
