@@ -9,16 +9,96 @@
 package main
 
 import (
+	"../peerclientlib"
+	"../serverlib"
+	"crypto/rand"
+	"errors"
 	"log"
 	"fmt"
 	"net"
 	"net/rpc"
 	"os"
+	"sync"
 )
 
 type TankServer int
 
-func (s *TankServer) Register () error {
+type Status int
+
+const (
+	// Connected mode.
+	DISCONNECTED Status = iota
+	// Disconnected mode.
+	CONNECTED
+)
+
+type Connection struct {
+	status Status
+	displayName string
+	address string
+}
+
+// Error definitions
+
+// Contains bad ID
+type InvalidClientError string
+
+func (e InvalidClientError) Error() string {
+	return fmt.Sprintf("Invalid Client Id [%s]. Please register.", e)
+}
+
+// State Variables
+
+var connections = struct {
+	sync.RWMutex
+	m map[string]Connection
+}{m : make(map[string]Connection)}
+
+// Server Implementation
+
+func getUniqueUserID() (string, error) {
+	b := make([]byte, 16)
+    _, err := rand.Read(b)
+    if err != nil {
+        return "", err
+    }
+
+    uuid := fmt.Sprintf("%X-%X-%X-%X-%X", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
+
+    return uuid, nil
+}
+
+func (s *TankServer) Register (peerInfo serverlib.PeerInfo, settings *peerclientlib.PeerNetSettings) error {
+
+	// TODO Refactor this magic number
+	uuid, err := getUniqueUserID()
+	if err != nil {
+		return err
+	}
+	newSettings := peerclientlib.PeerNetSettings{1, uuid, peerInfo.DisplayName}
+	*settings = newSettings
+
+	connections.Lock()
+	connections.m[uuid] = Connection{status : DISCONNECTED, displayName : peerInfo.DisplayName, address : peerInfo.Address.String()}
+	connections.Unlock()
+	return nil
+}
+
+func (s *TankServer) Connect (settings peerclientlib.PeerNetSettings, ack *bool) error {
+	connections.Lock()
+	c, ok := connections.m[settings.UniqueUserID]
+	if !ok {
+		connections.Unlock()
+		return InvalidClientError(settings.UniqueUserID)
+	}
+	if c.status == CONNECTED {
+		connections.Unlock()
+		return errors.New("Client already connected")
+	}
+	c.status = CONNECTED
+	connections.m[settings.UniqueUserID] = c
+	connections.Unlock()
+	*ack = true
 	return nil
 }
 
