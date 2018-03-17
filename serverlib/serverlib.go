@@ -64,3 +64,13 @@ func (r *RPCServerAPI) Connect(settings peerclientlib.PeerNetSettings) (bool, er
 
 	return ack, nil
 }
+
+func (r *RPCServerAPI) GetNodes(settings peerclientlib.PeerNetSettings) ([]string, error) {
+	var nodes []string
+
+	if err := r.doApiCall("TankServer.GetNodes", &settings, &nodes); err != nil {
+		return nil, err
+	}
+
+	return nodes, nil
+}

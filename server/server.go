@@ -102,6 +102,28 @@ func (s *TankServer) Connect (settings peerclientlib.PeerNetSettings, ack *bool)
 	return nil
 }
 
+func (s *TankServer) GetNodes (settings peerclientlib.PeerNetSettings, addrSet *[]string) error {
+	connections.RLock()
+	defer connections.RUnlock()
+
+	if _, ok := connections.m[settings.UniqueUserID]; !ok {
+		return InvalidClientError(settings.UniqueUserID)
+	}
+
+	peerAddresses := make([]string, 0, len(connections.m)-1)
+
+	for key, connection := range connections.m {
+		if key == settings.UniqueUserID {
+			continue
+		}
+		peerAddresses = append(peerAddresses, connection.address)
+	}
+
+	// TODO : Filter the addresses better for network topology
+	*addrSet = peerAddresses
+	return nil
+}
+
 func main() {
 	if len(os.Args) != 2 {
 		log.Fatal("Usage: go run server.go <IP Address : Port")
