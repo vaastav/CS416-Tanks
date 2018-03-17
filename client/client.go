@@ -11,42 +11,23 @@ import (
 	"math/rand"
 	_ "image/png"
 	"time"
+	"math"
 )
 
-type Player struct {
-	sprite *pixel.Sprite
-	ID uint64
-	Pos pixel.Vec
-	Angle float64
-}
-
-func NewPlayer() *Player {
-	return &Player {
-		ID: rand.Uint64(),
-		sprite: pixel.NewSprite(playerPic, playerPic.Bounds()),
-	}
-}
-
-func (p *Player) Draw(t pixel.Target) {
-	mat := pixel.IM.Scaled(pixel.ZV, 0.25).
-		Rotated(pixel.ZV, p.Angle).Moved(p.Pos)
-
-	p.sprite.Draw(t, mat)
-}
-
 var (
-	localPlayer *Player
 	windowCfg = pixelgl.WindowConfig{
 		Title: "Wednesday",
 		Bounds: pixel.R(0, 0, 1024, 768),
 		VSync: true,
 	}
+	win *pixelgl.Window
 	playerPic pixel.Picture
-	players []*Player
 )
 
-const (
-	playerSpeed = 150.0
+var (
+	localPlayer *Player
+	players []*Player
+	updateChannel = make(chan *Update, 100)
 )
 
 func main() {
@@ -59,6 +40,7 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// Create the local player
 	localPlayer = NewPlayer()
 	localPlayer.Pos = windowCfg.Bounds.Center()
 
@@ -66,53 +48,84 @@ func main() {
 }
 
 func run() {
-	win, err := pixelgl.NewWindow(windowCfg)
+	var err error
+	win, err = pixelgl.NewWindow(windowCfg)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	win.SetSmooth(true)
 
-	imd := imdraw.New(nil)
-
 	last := time.Now()
 	for !win.Closed() {
 		dt := time.Since(last).Seconds()
 		last = time.Now()
 
-		if win.Pressed(pixelgl.KeyA) {
-			localPlayer.Pos.X -= playerSpeed * dt
+		// Update the local player with local input
+		doLocalInput(dt)
+
+		// Accept all waiting events
+	outer:
+		for {
+			select {
+			case update := <-updateChannel:
+				// TODO deal with other players as well
+				localPlayer.Accept(update)
+			default:
+				// Quit if there are no events waiting
+				break outer
+			}
 		}
 
-		if win.Pressed(pixelgl.KeyD) {
-			localPlayer.Pos.X += playerSpeed * dt
-		}
-
-		if win.Pressed(pixelgl.KeyS) {
-			localPlayer.Pos.Y -= playerSpeed * dt
-		}
-
-		if win.Pressed(pixelgl.KeyW) {
-			localPlayer.Pos.Y += playerSpeed * dt
-		}
-
-		mousePosition := win.MousePosition().Sub(localPlayer.Pos)
-
-		imd.Clear()
-
-		lineLength := win.Bounds().Max.Sub(win.Bounds().Min).Len()
-
-		endPoint := mousePosition.Scaled(lineLength / mousePosition.Len()).Add(localPlayer.Pos)
-
-		imd.Color = colornames.Darkred
-		imd.Push(localPlayer.Pos, endPoint)
-		imd.Line(3)
-
-		win.Clear(colornames.Whitesmoke)
-		imd.Draw(win)
-		localPlayer.Draw(win)
-		win.Update()
+		doDraw()
 	}
+}
+
+func doLocalInput(dt float64) {
+	var update *Update
+
+	if win.Pressed(pixelgl.KeyA) {
+		update = localPlayer.MoveLeft(dt, win.MousePosition())
+	}
+
+	if win.Pressed(pixelgl.KeyD) {
+		update = localPlayer.MoveRight(dt, win.MousePosition())
+	}
+
+	if win.Pressed(pixelgl.KeyS) {
+		update = localPlayer.MoveDown(dt, win.MousePosition())
+	}
+
+	if win.Pressed(pixelgl.KeyW) {
+		update = localPlayer.MoveUp(dt, win.MousePosition())
+	}
+
+	if update == nil {
+		update = localPlayer.AngleUpdate(win.MousePosition())
+	}
+
+	updateChannel <- update
+}
+
+var imd = imdraw.New(nil)
+
+func doDraw() {
+	imd.Clear()
+
+	lineLength := win.Bounds().Max.Sub(win.Bounds().Min).Len()
+	endPoint := pixel.V(math.Cos(localPlayer.Angle), math.Sin(localPlayer.Angle)).
+		Scaled(lineLength).Add(localPlayer.Pos)
+
+	imd.Color = colornames.Darkred
+	imd.Push(localPlayer.Pos, endPoint)
+	imd.Line(3)
+
+	win.Clear(colornames.Whitesmoke)
+
+	imd.Draw(win)
+	localPlayer.Draw(win)
+
+	win.Update()
 }
 
 func loadPicture(path string) (pixel.Picture, error) {
