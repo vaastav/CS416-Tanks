@@ -111,7 +111,8 @@ func (l *ClientAPIListener) Accept() error {
 	// Process the message
 	switch msg.Kind {
 	case UPDATE:
-		err = l.table.NotifyUpdate(msg.ClientID, msg.Update)
+		// NotifyUpdate doesn't need a response
+		return l.table.NotifyUpdate(msg.ClientID, msg.Update)
 	case REGISTER:
 		err = l.table.Register(msg.ClientID, msg.Address)
 	}
