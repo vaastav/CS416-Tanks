@@ -12,6 +12,7 @@ import (
 	_ "image/png"
 	"time"
 	"math"
+	"../clientlib"
 )
 
 var (
@@ -20,14 +21,16 @@ var (
 		Bounds: pixel.R(0, 0, 1024, 768),
 		VSync: true,
 	}
-	win *pixelgl.Window
-	playerPic pixel.Picture
 )
 
 var (
-	localPlayer *Player
-	players []*Player
-	updateChannel = make(chan *Update, 100)
+	UpdateChannel = make(chan clientlib.Update, 100)
+)
+
+var (
+	playerPic pixel.Picture
+	localPlayer   *Player
+	players = make(map[uint64]*Player)
 )
 
 func main() {
@@ -44,8 +47,14 @@ func main() {
 	localPlayer = NewPlayer()
 	localPlayer.Pos = windowCfg.Bounds.Center()
 
+	// Start the peer worker
+	go PeerWorker()
+
+	// Run the main thread
 	pixelgl.Run(run)
 }
+
+var win *pixelgl.Window
 
 func run() {
 	var err error
@@ -65,46 +74,51 @@ func run() {
 		doLocalInput(dt)
 
 		// Accept all waiting events
-	outer:
-		for {
-			select {
-			case update := <-updateChannel:
-				// TODO deal with other players as well
-				localPlayer.Accept(update)
-			default:
-				// Quit if there are no events waiting
-				break outer
-			}
-		}
+		doAcceptUpdates()
 
+		// Draw everything
 		doDraw()
 	}
 }
 
+func doAcceptUpdates() {
+	for {
+		select {
+		case <-UpdateChannel:
+			// TODO deal with other players as well
+		default:
+			// Done if there are no more events waiting
+			return
+		}
+	}
+}
+
 func doLocalInput(dt float64) {
-	var update *Update
+	update := localPlayer.Update()
 
 	if win.Pressed(pixelgl.KeyA) {
-		update = localPlayer.MoveLeft(dt, win.MousePosition())
+		update = update.MoveLeft(dt)
 	}
 
 	if win.Pressed(pixelgl.KeyD) {
-		update = localPlayer.MoveRight(dt, win.MousePosition())
+		update = update.MoveRight(dt)
 	}
 
 	if win.Pressed(pixelgl.KeyS) {
-		update = localPlayer.MoveDown(dt, win.MousePosition())
+		update = update.MoveDown(dt)
 	}
 
 	if win.Pressed(pixelgl.KeyW) {
-		update = localPlayer.MoveUp(dt, win.MousePosition())
+		update = update.MoveUp(dt)
 	}
 
-	if update == nil {
-		update = localPlayer.AngleUpdate(win.MousePosition())
-	}
+	update = update.UpdateAngle(win.MousePosition())
 
-	updateChannel <- update
+	// Update our local player immediately
+	localPlayer.Accept(update)
+
+	// Tell everybody else about it
+	RecordUpdates <- update
 }
 
 var imd = imdraw.New(nil)

@@ -1,14 +1,14 @@
 package serverlib
 
 import (
-	"../peerclientlib"
+	"../clientlib"
 	"net"
 	"net/rpc"	
 	"time"
 )
 
 type ServerAPI interface {
-	Register(address net.Addr, display_name string) (peerclientlib.PeerNetSettings, error)
+	Register(address net.Addr, display_name string) (clientlib.PeerNetSettings, error)
 	GetNodes(uuid string) ([]net.Addr, error)
 }
 
@@ -44,18 +44,18 @@ func (r *RPCServerAPI) doApiCall(call string, request interface{}, response inte
 	}
 }
 
-func (r *RPCServerAPI) Register(address net.Addr, display_name string) (peerclientlib.PeerNetSettings, error) {
+func (r *RPCServerAPI) Register(address net.Addr, display_name string) (clientlib.PeerNetSettings, error) {
 	request := PeerInfo{address, display_name}
-	var settings peerclientlib.PeerNetSettings
+	var settings clientlib.PeerNetSettings
 
 	if err :=  r.doApiCall("TankServer.Register", &request, &settings); err != nil {
-		return peerclientlib.PeerNetSettings{}, err
+		return clientlib.PeerNetSettings{}, err
 	}
 
 	return settings, nil
 }
 
-func (r *RPCServerAPI) Connect(settings peerclientlib.PeerNetSettings) (bool, error) {
+func (r *RPCServerAPI) Connect(settings clientlib.PeerNetSettings) (bool, error) {
 	var ack bool
 	
 	if err := r.doApiCall("TankServer.Connect", &settings, &ack); err != nil {
@@ -65,7 +65,7 @@ func (r *RPCServerAPI) Connect(settings peerclientlib.PeerNetSettings) (bool, er
 	return ack, nil
 }
 
-func (r *RPCServerAPI) GetNodes(settings peerclientlib.PeerNetSettings) ([]string, error) {
+func (r *RPCServerAPI) GetNodes(settings clientlib.PeerNetSettings) ([]string, error) {
 	var nodes []string
 
 	if err := r.doApiCall("TankServer.GetNodes", &settings, &nodes); err != nil {

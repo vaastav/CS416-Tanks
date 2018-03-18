@@ -9,7 +9,7 @@
 package main
 
 import (
-	"../peerclientlib"
+	"../clientlib"
 	"../serverlib"
 	"crypto/rand"
 	"errors"
@@ -68,14 +68,14 @@ func getUniqueUserID() (string, error) {
     return uuid, nil
 }
 
-func (s *TankServer) Register (peerInfo serverlib.PeerInfo, settings *peerclientlib.PeerNetSettings) error {
+func (s *TankServer) Register (peerInfo serverlib.PeerInfo, settings *clientlib.PeerNetSettings) error {
 
 	// TODO Refactor this magic number
 	uuid, err := getUniqueUserID()
 	if err != nil {
 		return err
 	}
-	newSettings := peerclientlib.PeerNetSettings{1, uuid, peerInfo.DisplayName}
+	newSettings := clientlib.PeerNetSettings{1, uuid, peerInfo.DisplayName}
 	*settings = newSettings
 
 	connections.Lock()
@@ -84,7 +84,7 @@ func (s *TankServer) Register (peerInfo serverlib.PeerInfo, settings *peerclient
 	return nil
 }
 
-func (s *TankServer) Connect (settings peerclientlib.PeerNetSettings, ack *bool) error {
+func (s *TankServer) Connect (settings clientlib.PeerNetSettings, ack *bool) error {
 	connections.Lock()
 	c, ok := connections.m[settings.UniqueUserID]
 	if !ok {
@@ -102,7 +102,7 @@ func (s *TankServer) Connect (settings peerclientlib.PeerNetSettings, ack *bool)
 	return nil
 }
 
-func (s *TankServer) GetNodes (settings peerclientlib.PeerNetSettings, addrSet *[]string) error {
+func (s *TankServer) GetNodes (settings clientlib.PeerNetSettings, addrSet *[]string) error {
 	connections.RLock()
 	defer connections.RUnlock()
 

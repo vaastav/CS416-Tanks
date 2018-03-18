@@ -3,10 +3,7 @@ package main
 import (
 	"github.com/faiface/pixel"
 	"math/rand"
-)
-
-const (
-	playerSpeed = 150.0
+	"../clientlib"
 )
 
 // TODO add shooting mechanic
@@ -32,40 +29,18 @@ func (p *Player) Draw(t pixel.Target) {
 	p.sprite.Draw(t, mat)
 }
 
-func (p *Player) MoveLeft(dt float64, mousePos pixel.Vec) *Update {
-	return p.PositionUpdate(-playerSpeed*dt, 0, win.MousePosition())
-}
-
-func (p *Player) MoveRight(dt float64, mousePos pixel.Vec) *Update {
-	return p.PositionUpdate(playerSpeed*dt, 0, win.MousePosition())
-}
-
-func (p *Player) MoveDown(dt float64, mousePos pixel.Vec) *Update {
-	return p.PositionUpdate(0, -playerSpeed*dt, win.MousePosition())
-}
-
-func (p *Player) MoveUp(dt float64, mousePos pixel.Vec) *Update {
-	return p.PositionUpdate(0, playerSpeed*dt, win.MousePosition())
-}
-
-func (p *Player) AngleUpdate(mousePos pixel.Vec) *Update {
-	return p.PositionUpdate(0, 0, mousePos)
-}
-
-func (p *Player) PositionUpdate(dx float64, dy float64, mousePos pixel.Vec) *Update {
-	pos := p.Pos.Add(pixel.V(dx, dy))
-
-	return &Update{
-		Kind: POSITION,
+func (p *Player) Update() clientlib.Update {
+	return clientlib.Update{
+		Kind: clientlib.POSITION,
 		PlayerID: p.ID,
-		Pos: pos,
-		Angle: mousePos.Sub(pos).Angle(),
+		Pos: p.Pos,
+		Angle: p.Angle,
 	}
 }
 
-func (p *Player) Accept(update *Update) {
+func (p *Player) Accept(update clientlib.Update) {
 	switch update.Kind{
-	case POSITION:
+	case clientlib.POSITION:
 		p.Pos = update.Pos
 		p.Angle = update.Angle
 	}
