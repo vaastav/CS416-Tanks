@@ -24,6 +24,7 @@ var (
 )
 
 var (
+	ClientID uint64
 	UpdateChannel = make(chan clientlib.Update, 100)
 )
 
@@ -46,6 +47,8 @@ func main() {
 	// Create the local player
 	localPlayer = NewPlayer()
 	localPlayer.Pos = windowCfg.Bounds.Center()
+
+	ClientID = localPlayer.ID
 
 	// Start the peer worker
 	go PeerWorker()
