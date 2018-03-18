@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/faiface/pixel"
-	"math/rand"
 	"../clientlib"
 )
 
@@ -15,9 +14,9 @@ type Player struct {
 	Angle float64
 }
 
-func NewPlayer() *Player {
+func NewPlayer(id uint64) *Player {
 	return &Player {
-		ID: rand.Uint64(),
+		ID: id,
 		sprite: pixel.NewSprite(playerPic, playerPic.Bounds()),
 	}
 }

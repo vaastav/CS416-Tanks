@@ -13,6 +13,13 @@ import (
 	"time"
 	"math"
 	"../clientlib"
+	"../serverlib"
+	"net/rpc"
+	"net"
+
+	_ "net/http/pprof"
+	"net/http"
+	"strconv"
 )
 
 var (
@@ -24,34 +31,61 @@ var (
 )
 
 var (
-	ClientID uint64
-	UpdateChannel = make(chan clientlib.Update, 100)
+	NetworkSettings clientlib.PeerNetSettings
+	LocalAddr *net.UDPAddr
+	UpdateChannel = make(chan clientlib.Update, 1000)
 )
 
 var (
 	playerPic pixel.Picture
 	localPlayer   *Player
+	server serverlib.ServerAPI
 	players = make(map[uint64]*Player)
 )
 
 func main() {
 	rand.Seed(time.Now().UnixNano())
 
-	// Load the player picture
+	// Connect to the server
+	serverAddr := os.Args[1]
+	localAddrString := os.Args[2]
+
 	var err error
+	LocalAddr, err = net.ResolveUDPAddr("udp", localAddrString)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	go func() {
+		log.Println(http.ListenAndServe("localhost:" + strconv.Itoa(LocalAddr.Port + 20), nil))
+	}()
+
+	client, err := rpc.Dial("tcp", serverAddr)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	server = serverlib.NewRPCServerAPI(client)
+	NetworkSettings, err = server.Register(localAddrString, rand.Uint64(), "Wednesday")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Load the player picture
 	playerPic, err = loadPicture("images/player.png")
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// Create the local player
-	localPlayer = NewPlayer()
+	localPlayer = NewPlayer(NetworkSettings.UniqueUserID)
 	localPlayer.Pos = windowCfg.Bounds.Center()
 
-	ClientID = localPlayer.ID
-
-	// Start the peer worker
+	// Start workers
 	go PeerWorker()
+	go RecordWorker()
+	go OutgoingWorker()
+	go ListenerWorker()
 
 	// Run the main thread
 	pixelgl.Run(run)
@@ -87,8 +121,19 @@ func run() {
 func doAcceptUpdates() {
 	for {
 		select {
-		case <-UpdateChannel:
-			// TODO deal with other players as well
+		case update := <-UpdateChannel:
+			if update.PlayerID == localPlayer.ID {
+				// We already know about ourselves
+				continue
+			}
+
+			if players[update.PlayerID] == nil {
+				// New player, create it
+				players[update.PlayerID] = NewPlayer(update.PlayerID)
+			}
+
+			// Update the player with what we received
+			players[update.PlayerID].Accept(update)
 		default:
 			// Done if there are no more events waiting
 			return
@@ -141,6 +186,11 @@ func doDraw() {
 
 	imd.Draw(win)
 	localPlayer.Draw(win)
+
+	// draw all the other players
+	for _, p := range players {
+		p.Draw(win)
+	}
 
 	win.Update()
 }

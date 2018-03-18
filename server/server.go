@@ -11,7 +11,7 @@ package main
 import (
 	"../clientlib"
 	"../serverlib"
-	"crypto/rand"
+	"math/rand"
 	"errors"
 	"log"
 	"fmt"
@@ -19,6 +19,7 @@ import (
 	"net/rpc"
 	"os"
 	"sync"
+	"time"
 )
 
 type TankServer int
@@ -51,72 +52,71 @@ func (e InvalidClientError) Error() string {
 
 var connections = struct {
 	sync.RWMutex
-	m map[string]Connection
-}{m : make(map[string]Connection)}
+	m map[uint64]Connection
+}{m : make(map[uint64]Connection)}
 
 // Server Implementation
 
-func getUniqueUserID() (string, error) {
-	b := make([]byte, 16)
-    _, err := rand.Read(b)
-    if err != nil {
-        return "", err
-    }
-
-    uuid := fmt.Sprintf("%X-%X-%X-%X-%X", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
-
-    return uuid, nil
-}
-
 func (s *TankServer) Register (peerInfo serverlib.PeerInfo, settings *clientlib.PeerNetSettings) error {
-
-	// TODO Refactor this magic number
-	uuid, err := getUniqueUserID()
-	if err != nil {
-		return err
+	log.Println("register", peerInfo.ClientID)
+	newSettings := clientlib.PeerNetSettings{
+		MinimumPeerConnections: 1,
+		UniqueUserID: peerInfo.ClientID,
+		DisplayName: peerInfo.DisplayName,
 	}
-	newSettings := clientlib.PeerNetSettings{1, uuid, peerInfo.DisplayName}
+
 	*settings = newSettings
 
 	connections.Lock()
-	connections.m[uuid] = Connection{status : DISCONNECTED, displayName : peerInfo.DisplayName, address : peerInfo.Address.String()}
+	connections.m[peerInfo.ClientID] = Connection{
+		status: DISCONNECTED,
+		displayName: peerInfo.DisplayName,
+		address: peerInfo.Address,
+	}
+
 	connections.Unlock()
 	return nil
 }
 
-func (s *TankServer) Connect (settings clientlib.PeerNetSettings, ack *bool) error {
+func (s *TankServer) Connect (clientID uint64, ack *bool) error {
+	log.Println("connect", clientID)
 	connections.Lock()
-	c, ok := connections.m[settings.UniqueUserID]
+	c, ok := connections.m[clientID]
 	if !ok {
 		connections.Unlock()
-		return InvalidClientError(settings.UniqueUserID)
+		return InvalidClientError(clientID)
 	}
 	if c.status == CONNECTED {
 		connections.Unlock()
-		return errors.New("Client already connected")
+		return errors.New("client already connected")
 	}
 	c.status = CONNECTED
-	connections.m[settings.UniqueUserID] = c
+	connections.m[clientID] = c
 	connections.Unlock()
 	*ack = true
 	return nil
 }
 
-func (s *TankServer) GetNodes (settings clientlib.PeerNetSettings, addrSet *[]string) error {
+func (s *TankServer) GetNodes (clientID uint64, addrSet *[]serverlib.PeerInfo) error {
+	log.Println("getnodes", clientID)
 	connections.RLock()
 	defer connections.RUnlock()
 
-	if _, ok := connections.m[settings.UniqueUserID]; !ok {
-		return InvalidClientError(settings.UniqueUserID)
+	if _, ok := connections.m[clientID]; !ok {
+		return InvalidClientError(clientID)
 	}
 
-	peerAddresses := make([]string, 0, len(connections.m)-1)
+	peerAddresses := make([]serverlib.PeerInfo, 0, len(connections.m)-1)
 
 	for key, connection := range connections.m {
-		if key == settings.UniqueUserID {
+		if key == clientID {
 			continue
 		}
-		peerAddresses = append(peerAddresses, connection.address)
+		peerAddresses = append(peerAddresses, serverlib.PeerInfo{
+			Address: connection.address,
+			ClientID: key,
+			DisplayName: connection.displayName,
+		})
 	}
 
 	// TODO : Filter the addresses better for network topology
@@ -125,18 +125,20 @@ func (s *TankServer) GetNodes (settings clientlib.PeerNetSettings, addrSet *[]st
 }
 
 func main() {
+	rand.Seed(time.Now().UnixNano())
+
 	if len(os.Args) != 2 {
 		log.Fatal("Usage: go run server.go <IP Address : Port")
 	}
-	ip_addr := os.Args[1]
+	ipAddr := os.Args[1]
 	// TODO : Does the server need to have its connection as UDP as well?
 	// I imagine we can let it be as TCP
-	server_addr, err := net.ResolveTCPAddr("tcp", ip_addr)
+	serverAddr, err := net.ResolveTCPAddr("tcp", ipAddr)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	inbound, err := net.ListenTCP("tcp", server_addr)
+	inbound, err := net.ListenTCP("tcp", serverAddr)
 	if err != nil {
 		log.Fatal(err)
 	}

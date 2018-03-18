@@ -3,12 +3,13 @@ package clientlib
 import (
 	"net"
 	"fmt"
+
 )
 
 type PeerNetSettings struct {
-	MinimumPeerConnections uint8
+	MinimumPeerConnections int
 
-	UniqueUserID string
+	UniqueUserID uint64
 
 	DisplayName string
 }
@@ -59,8 +60,20 @@ func (a *ClientAPIRemote) doAPICall(msg ClientMessage) error {
 	panic("Unreachable")
 }
 
+func (a *ClientAPIRemote) goAPICall(msg ClientMessage) error {
+	// Send our message
+	err := SendMessage(a.conn, nil, &msg)
+	if err != nil {
+		return err
+	}
+
+	// don't wait for a reply
+	return nil
+}
+
+// NotifyUpdate is async, does not wait for a reply
 func (a *ClientAPIRemote) NotifyUpdate(clientID uint64, update Update) error {
-	return a.doAPICall(ClientMessage{
+	return a.goAPICall(ClientMessage{
 		Kind: UPDATE,
 		ClientID: clientID,
 		Update: update,
@@ -71,6 +84,7 @@ func (a *ClientAPIRemote) Register(clientID uint64, address string) error {
 	return a.doAPICall(ClientMessage{
 		Kind: REGISTER,
 		ClientID: clientID,
+		Address: address,
 	})
 }
 

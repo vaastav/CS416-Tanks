@@ -56,7 +56,6 @@ func ReceiveMessage(conn *net.UDPConn, msg interface{}) (*net.UDPAddr, error) {
 	buf := make([]byte, 0x400)
 
 	n, addr, err := conn.ReadFromUDP(buf)
-
 	if err != nil {
 		return nil, err
 	}

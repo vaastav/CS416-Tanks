@@ -2,14 +2,14 @@ package serverlib
 
 import (
 	"../clientlib"
-	"net"
-	"net/rpc"	
+	"net/rpc"
 	"time"
 )
 
 type ServerAPI interface {
-	Register(address net.Addr, display_name string) (clientlib.PeerNetSettings, error)
-	GetNodes(uuid string) ([]net.Addr, error)
+	Register(address string, clientID uint64, displayName string) (clientlib.PeerNetSettings, error)
+	Connect(clientID uint64) (bool, error)
+	GetNodes(clientID uint64) ([]PeerInfo, error)
 }
 
 type RPCServerAPI struct {
@@ -17,7 +17,8 @@ type RPCServerAPI struct {
 }
 
 type PeerInfo struct {
-	Address net.Addr
+	Address string
+	ClientID uint64
 	DisplayName string
 }
 
@@ -44,8 +45,8 @@ func (r *RPCServerAPI) doApiCall(call string, request interface{}, response inte
 	}
 }
 
-func (r *RPCServerAPI) Register(address net.Addr, display_name string) (clientlib.PeerNetSettings, error) {
-	request := PeerInfo{address, display_name}
+func (r *RPCServerAPI) Register(address string, clientID uint64, displayName string) (clientlib.PeerNetSettings, error) {
+	request := PeerInfo{address, clientID,displayName}
 	var settings clientlib.PeerNetSettings
 
 	if err :=  r.doApiCall("TankServer.Register", &request, &settings); err != nil {
@@ -55,20 +56,20 @@ func (r *RPCServerAPI) Register(address net.Addr, display_name string) (clientli
 	return settings, nil
 }
 
-func (r *RPCServerAPI) Connect(settings clientlib.PeerNetSettings) (bool, error) {
+func (r *RPCServerAPI) Connect(clientID uint64) (bool, error) {
 	var ack bool
 	
-	if err := r.doApiCall("TankServer.Connect", &settings, &ack); err != nil {
+	if err := r.doApiCall("TankServer.Connect", &clientID, &ack); err != nil {
 		return false, err
 	}
 
 	return ack, nil
 }
 
-func (r *RPCServerAPI) GetNodes(settings clientlib.PeerNetSettings) ([]string, error) {
-	var nodes []string
+func (r *RPCServerAPI) GetNodes(clientID uint64) ([]PeerInfo, error) {
+	var nodes []PeerInfo
 
-	if err := r.doApiCall("TankServer.GetNodes", &settings, &nodes); err != nil {
+	if err := r.doApiCall("TankServer.GetNodes", &clientID, &nodes); err != nil {
 		return nil, err
 	}
 

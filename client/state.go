@@ -3,10 +3,11 @@ package main
 import (
 	"../clientlib"
 	"github.com/faiface/pixel"
+	"log"
 )
 
 var (
-	RecordUpdates = make(chan clientlib.Update, 100)
+	RecordUpdates = make(chan clientlib.Update, 1000)
 )
 
 var (
@@ -27,13 +28,14 @@ func (r *PlayerRecord) Accept(update clientlib.Update) {
 	}
 }
 
-func PeerWorker() {
+func RecordWorker() {
 	for {
 		// Get the next incoming update
 		update := <- RecordUpdates
 
 		// Add this player to our records if we haven't heard of them before
 		if records[update.PlayerID] == nil {
+			log.Println("heard of new player", update.PlayerID)
 			records[update.PlayerID] = &PlayerRecord{
 				ID: update.PlayerID,
 			}
@@ -43,6 +45,11 @@ func PeerWorker() {
 		records[update.PlayerID].Accept(update)
 
 		// TODO validate incoming updates
+
+		// Display the update
 		UpdateChannel <- update
+
+		// Send the update out
+		OutgoingUpdates <- update
 	}
 }
