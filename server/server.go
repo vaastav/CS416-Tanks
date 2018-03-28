@@ -15,6 +15,7 @@ import (
 	"errors"
 	"log"
 	"fmt"
+	"github.com/DistributedClocks/GoVector/govec"
 	"net"
 	"net/rpc"
 	"os"
@@ -54,6 +55,8 @@ var connections = struct {
 	sync.RWMutex
 	m map[uint64]Connection
 }{m : make(map[uint64]Connection)}
+
+var Logger *govec.GoLog
 
 // Server Implementation
 
@@ -128,7 +131,7 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 
 	if len(os.Args) != 2 {
-		log.Fatal("Usage: go run server.go <IP Address : Port")
+		log.Fatal("Usage: go run server.go <IP Address : Port>")
 	}
 	ipAddr := os.Args[1]
 	// TODO : Does the server need to have its connection as UDP as well?
@@ -143,8 +146,10 @@ func main() {
 		log.Fatal(err)
 	}
 
+	Logger = govec.InitGoVector("server", "serverlogfile")
 	server := new(TankServer)
 	rpc.Register(server)
 	fmt.Println("Listening now")
+	Logger.LogLocalEvent("Listening Now")
 	rpc.Accept(inbound)
 }
