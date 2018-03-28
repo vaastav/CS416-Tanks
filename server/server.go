@@ -60,8 +60,15 @@ var Logger *govec.GoLog
 
 // Server Implementation
 
+func encodeToByte(v interface{}) (data []byte) {
+	s := fmt.Sprintf("%v", v)
+	return []byte(s)
+}
+
 func (s *TankServer) Register (peerInfo serverlib.PeerInfo, settings *clientlib.PeerNetSettings) error {
 	log.Println("register", peerInfo.ClientID)
+	var incomingMessage int
+	Logger.UnpackReceive("[Register] received from client", encodeToByte(peerInfo), &incomingMessage)
 	newSettings := clientlib.PeerNetSettings{
 		MinimumPeerConnections: 1,
 		UniqueUserID: peerInfo.ClientID,
@@ -83,6 +90,8 @@ func (s *TankServer) Register (peerInfo serverlib.PeerInfo, settings *clientlib.
 
 func (s *TankServer) Connect (clientID uint64, ack *bool) error {
 	log.Println("connect", clientID)
+	var incomingMessage int
+	Logger.UnpackReceive("[Connect] received from client", encodeToByte(clientID), &incomingMessage)
 	connections.Lock()
 	c, ok := connections.m[clientID]
 	if !ok {
@@ -102,6 +111,8 @@ func (s *TankServer) Connect (clientID uint64, ack *bool) error {
 
 func (s *TankServer) GetNodes (clientID uint64, addrSet *[]serverlib.PeerInfo) error {
 	log.Println("getnodes", clientID)
+	var incomingMessage int
+	Logger.UnpackReceive("[GetNodes] received from client", encodeToByte(clientID), &incomingMessage)
 	connections.RLock()
 	defer connections.RUnlock()
 
