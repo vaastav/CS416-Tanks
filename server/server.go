@@ -10,6 +10,7 @@ package main
 
 import (
 	"../clientlib"
+	"../clocklib"
 	"../serverlib"
 	"math/rand"
 	"errors"
@@ -58,11 +59,30 @@ var connections = struct {
 
 var Logger *govec.GoLog
 
+var Clock *clocklib.ClockManager = &clocklib.ClockManager{0}
+
 // Server Implementation
 
 func encodeToByte(v interface{}) (data []byte) {
 	s := fmt.Sprintf("%v", v)
 	return []byte(s)
+}
+
+func (s *TankServer) syncClocks() {
+	Logger.LogLocalEvent("Syncing Clocks")
+	connections.Lock()
+	if len(connections.m) == 0 {
+		connections.Unlock()
+		return
+	}
+
+	for key, connection := range connections.m {
+		if connection.status == DISCONNECTED {
+			continue
+		}
+		s := fmt.Sprintf("Requesting client %d for time", key)
+		Logger.LogLocalEvent(s)
+	}
 }
 
 func (s *TankServer) Register (peerInfo serverlib.PeerInfo, settings *clientlib.PeerNetSettings) error {
@@ -106,6 +126,8 @@ func (s *TankServer) Connect (clientID uint64, ack *bool) error {
 	connections.m[clientID] = c
 	connections.Unlock()
 	*ack = true
+	// Sync clock with the new client
+	go s.syncClocks()
 	return nil
 }
 

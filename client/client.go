@@ -13,6 +13,7 @@ import (
 	"time"
 	"math"
 	"../clientlib"
+	"../clocklib"
 	"../serverlib"
 	"net/rpc"
 	"net"
@@ -34,6 +35,7 @@ var (
 	NetworkSettings clientlib.PeerNetSettings
 	LocalAddr *net.UDPAddr
 	UpdateChannel = make(chan clientlib.Update, 1000)
+	Clock *clocklib.ClockManager = &clocklib.ClockManager{0}
 )
 
 var (
