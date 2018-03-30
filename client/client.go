@@ -71,6 +71,14 @@ func main() {
 		log.Fatal(err)
 	}
 
+	ack, err := server.Connect(NetworkSettings.UniqueUserID)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if !ack {
+		log.Fatal("Failed to connect to server")
+	}
+
 	// Load the player picture
 	playerPic, err = loadPicture("images/player.png")
 	if err != nil {
