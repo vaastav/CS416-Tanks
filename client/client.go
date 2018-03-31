@@ -34,6 +34,7 @@ var (
 var (
 	NetworkSettings clientlib.PeerNetSettings
 	LocalAddr *net.UDPAddr
+	RPCAddr *net.TCPAddr
 	UpdateChannel = make(chan clientlib.Update, 1000)
 	Clock *clocklib.ClockManager = &clocklib.ClockManager{0}
 )
@@ -62,13 +63,20 @@ func main() {
 		log.Println(http.ListenAndServe("localhost:" + strconv.Itoa(LocalAddr.Port + 20), nil))
 	}()
 
+	address := LocalAddr.IP.String() + ":" + strconv.Itoa(LocalAddr.Port + 5)
+	RPCAddr, err = net.ResolveTCPAddr("tcp", address)
+	if err != nil {
+		log.Fatal(err)
+	}
+	go ClockWorker()
+
 	client, err := rpc.Dial("tcp", serverAddr)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	server = serverlib.NewRPCServerAPI(client)
-	NetworkSettings, err = server.Register(localAddrString, rand.Uint64(), "Wednesday")
+	NetworkSettings, err = server.Register(localAddrString, address, rand.Uint64(), "Wednesday")
 	if err != nil {
 		log.Fatal(err)
 	}

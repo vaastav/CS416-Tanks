@@ -7,7 +7,7 @@ import (
 )
 
 type ServerAPI interface {
-	Register(address string, clientID uint64, displayName string) (clientlib.PeerNetSettings, error)
+	Register(address string, rpcAddress string, clientID uint64, displayName string) (clientlib.PeerNetSettings, error)
 	Connect(clientID uint64) (bool, error)
 	GetNodes(clientID uint64) ([]PeerInfo, error)
 }
@@ -18,6 +18,7 @@ type RPCServerAPI struct {
 
 type PeerInfo struct {
 	Address string
+	RPCAddress string
 	ClientID uint64
 	DisplayName string
 }
@@ -45,8 +46,8 @@ func (r *RPCServerAPI) doApiCall(call string, request interface{}, response inte
 	}
 }
 
-func (r *RPCServerAPI) Register(address string, clientID uint64, displayName string) (clientlib.PeerNetSettings, error) {
-	request := PeerInfo{address, clientID,displayName}
+func (r *RPCServerAPI) Register(address string, rpcAddress string, clientID uint64, displayName string) (clientlib.PeerNetSettings, error) {
+	request := PeerInfo{address, rpcAddress, clientID, displayName}
 	var settings clientlib.PeerNetSettings
 
 	if err :=  r.doApiCall("TankServer.Register", &request, &settings); err != nil {

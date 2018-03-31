@@ -39,6 +39,8 @@ type Connection struct {
 	status Status
 	displayName string
 	address string
+	rpcAddress string
+	offset time.Duration
 }
 
 // Error definitions
@@ -76,13 +78,68 @@ func (s *TankServer) syncClocks() {
 		return
 	}
 
+	m := make(map[uint64]time.Duration)
+	var offsetTotal time.Duration = 0
+	var offsetNum time.Duration = 1
+
 	for key, connection := range connections.m {
 		if connection.status == DISCONNECTED {
 			continue
 		}
 		s := fmt.Sprintf("Requesting client %d for time", key)
+		// Update to preapre send
 		Logger.LogLocalEvent(s)
+		client, err := rpc.Dial("tcp", connection.rpcAddress)
+		if err != nil {
+			// TODO : Better failure handling
+			log.Fatal(err)
+		}
+
+		before := Clock.GetCurrentTime()
+		
+		clockClient := clientlib.NewClientClockRemoteAPI(client)
+		t, err := clockClient.TimeRequest()
+		if err != nil {
+			log.Fatal(err)
+		}
+		after := Clock.GetCurrentTime()
+
+		clientTime := t.Add(after.Sub(before) / 2)
+		clientOffset := clientTime.Sub(after)
+		m[key] = clientOffset
+		offsetTotal += clientOffset
+		offsetNum++
 	}
+
+	offsetAverage := offsetTotal / offsetNum
+
+	for key, connection := range connections.m {
+		if connection.status == DISCONNECTED {
+			continue
+		}
+
+		// Update to prepare send
+		s := fmt.Sprintf("Telling client %d to set offset", key)
+		Logger.LogLocalEvent(s)
+		client, err := rpc.Dial("tcp", connection.rpcAddress)
+		if err != nil {
+			// TODO : Better failure handling
+			log.Fatal(err)
+		}
+
+		offset := offsetAverage - m[key]
+		connection.offset = offset
+		connections.m[key] = connection
+
+		clockClient := clientlib.NewClientClockRemoteAPI(client)
+		err = clockClient.SetOffset(offset)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	Logger.LogLocalEvent("Setting local clock offset")
+	Clock.Offset += offsetAverage
+	connections.Unlock()
 }
 
 func (s *TankServer) Register (peerInfo serverlib.PeerInfo, settings *clientlib.PeerNetSettings) error {
@@ -102,6 +159,8 @@ func (s *TankServer) Register (peerInfo serverlib.PeerInfo, settings *clientlib.
 		status: DISCONNECTED,
 		displayName: peerInfo.DisplayName,
 		address: peerInfo.Address,
+		rpcAddress: peerInfo.RPCAddress,
+		offset: 0,
 	}
 
 	connections.Unlock()

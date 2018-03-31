@@ -12,7 +12,7 @@ type ClockManager struct {
 	Offset time.Duration
 }
 
-func (m *ClockManager) GetCurrentTime() *time.Time{
+func (m *ClockManager) GetCurrentTime() time.Time{
 	return time.Now().Add(m.Offset)
 }
 
