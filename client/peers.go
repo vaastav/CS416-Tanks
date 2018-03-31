@@ -28,6 +28,7 @@ func PeerWorker() {
 	for {
 		peerLock.Lock()
 
+		// TODO: get number of connected peers, not all peers
 		if len(peers) < NetworkSettings.MinimumPeerConnections {
 			getMorePeers()
 		}
@@ -41,7 +42,8 @@ func PeerWorker() {
 func getMorePeers() {
 	newPeers, err := server.GetNodes(NetworkSettings.UniqueUserID)
 	if err != nil {
-		log.Fatal(err)
+		log.Println("Error retrieving more peer addresses from server:", err)
+		return
 	}
 
 	for _, p := range newPeers {
@@ -50,11 +52,12 @@ func getMorePeers() {
 			continue
 		}
 
-		log.Println("Adding peer", p.ClientID, "address", p.Address)
+		log.Println("Adding peer", p.ClientID, "at address", p.Address)
 
 		peer, err := newPeer(p.ClientID, p.Address)
 		if err != nil {
-			log.Fatal(err)
+			log.Println("Error adding new peer at address", p.Address, "with error:", err)
+			continue
 		}
 
 		peers[peer.ClientID] = peer
@@ -75,8 +78,9 @@ func newPeer(id uint64, addr string) (*PeerRecord, error) {
 
 	api := clientlib.NewClientAPIRemote(conn)
 	err = api.Register(NetworkSettings.UniqueUserID, LocalAddr.String())
+	// TODO: pass along TCP address as well, then begin monitoring heartbeats
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
 	return &PeerRecord{
@@ -99,7 +103,7 @@ func OutgoingWorker() {
 
 			err := peer.Api.NotifyUpdate(NetworkSettings.UniqueUserID, update)
 			if err != nil {
-				log.Fatal(err)
+				log.Println("Error notifying peer of update:", err)
 			}
 		}
 
@@ -110,6 +114,7 @@ func OutgoingWorker() {
 func ListenerWorker() {
 	conn, err := net.ListenUDP("udp", LocalAddr)
 	if err != nil {
+		// OK to exit here; we can't handle this failure
 		log.Fatal(err)
 	}
 
@@ -121,13 +126,18 @@ func ListenerWorker() {
 	for {
 		err = apiListener.Accept()
 		if err != nil {
-			log.Fatal(err)
+			log.Println("Error listening on UDP connection:", err)
 		}
 	}
 }
 
+// TODO: add workers to monitor heartbeats and send heartbeats
+
+////////////////////////////////////////////////////////////////////////////////////////////
+
+// Player-to-Player API
+
 func (*ClientListener) NotifyUpdate(clientID uint64, update clientlib.Update) error {
-	// Notify about this new update
 	RecordUpdates <- update
 	return nil
 }
@@ -145,6 +155,8 @@ func (*ClientListener) Register(clientID uint64, address string) error {
 	if err != nil {
 		return err
 	}
+
+	// TODO: hook up to TCP connection as well, start sending heartbeats
 
 	// Write down this new peer
 	peerLock.Lock()

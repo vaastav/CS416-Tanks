@@ -68,7 +68,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	go ClockWorker()
+	go ClockWorker() // TODO: this worker serves the TCP connection
 
 	client, err := rpc.Dial("tcp", serverAddr)
 	if err != nil {

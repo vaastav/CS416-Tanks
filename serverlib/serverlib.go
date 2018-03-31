@@ -10,6 +10,7 @@ type ServerAPI interface {
 	Register(address string, rpcAddress string, clientID uint64, displayName string) (clientlib.PeerNetSettings, error)
 	Connect(clientID uint64) (bool, error)
 	GetNodes(clientID uint64) ([]PeerInfo, error)
+	// TODO: add method to notify server of a peer disconnection
 }
 
 type RPCServerAPI struct {

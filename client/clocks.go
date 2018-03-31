@@ -20,8 +20,10 @@ func (c *ClockController) SetOffset(offset time.Duration, ack * bool) error {
 }
 
 func ClockWorker() {
+	// TODO: this listens to TCP connection
 	inbound, err := net.ListenTCP("tcp", RPCAddr)
 	if err != nil {
+		// OK to exit here; we can't handle this failure
 		log.Fatal(err)
 	}
 
