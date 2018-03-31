@@ -19,6 +19,18 @@ func (c *ClockController) SetOffset(offset time.Duration, ack * bool) error {
 	return nil
 }
 
+func (c *ClockController) Heartbeat(clientID uint64, ack *bool) error {
+	peerLock.Lock()
+	defer peerLock.Unlock()
+
+	if _, ok := peers[clientID]; !ok {
+		return nil // Return error?
+	}
+	peers[clientID].LastHeartbeat = time.Now()
+
+	return nil
+}
+
 func ClockWorker() {
 	// TODO: this listens to TCP connection
 	inbound, err := net.ListenTCP("tcp", RPCAddr)

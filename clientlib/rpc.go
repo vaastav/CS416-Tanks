@@ -11,6 +11,7 @@ type ClientMessage struct {
 	ClientID uint64
 	Update Update
 	Address string
+	TcpAddress string
 }
 
 type ClientReply struct {

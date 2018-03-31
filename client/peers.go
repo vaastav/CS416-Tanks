@@ -6,11 +6,13 @@ import (
 	"log"
 	"sync"
 	"time"
+	"net/rpc"
 )
 
 type PeerRecord struct {
 	ClientID uint64
 	Api *clientlib.ClientAPIRemote
+	LastHeartbeat time.Time
 }
 
 type ClientListener int
@@ -23,6 +25,12 @@ var (
 	peerLock = sync.Mutex{}
 	peers = make(map[uint64]*PeerRecord)
 )
+
+const HEARTBEAT_INTERVAL = time.Second * 2
+
+////////////////////////////////////////////////////////////////////////////////////////////
+
+// Workers
 
 func PeerWorker() {
 	for {
@@ -48,7 +56,7 @@ func getMorePeers() {
 
 	for _, p := range newPeers {
 		if peers[p.ClientID] != nil || p.ClientID == NetworkSettings.UniqueUserID {
-			// already have this peer, or it's us
+			// Already have this peer, or it's us
 			continue
 		}
 
@@ -77,15 +85,17 @@ func newPeer(id uint64, addr string) (*PeerRecord, error) {
 	}
 
 	api := clientlib.NewClientAPIRemote(conn)
-	err = api.Register(NetworkSettings.UniqueUserID, LocalAddr.String())
-	// TODO: pass along TCP address as well, then begin monitoring heartbeats
+	err = api.Register(NetworkSettings.UniqueUserID, LocalAddr.String(), RPCAddr.String())
 	if err != nil {
 		return nil, err
 	}
+	go HeartbeatMonitorWorker(id)
 
 	return &PeerRecord{
 		ClientID: id,
 		Api: api,
+		// This side listens for heartbeats from the new peer, so no client clock is set
+		LastHeartbeat: time.Now(),
 	}, nil
 }
 
@@ -103,7 +113,7 @@ func OutgoingWorker() {
 
 			err := peer.Api.NotifyUpdate(NetworkSettings.UniqueUserID, update)
 			if err != nil {
-				log.Println("Error notifying peer of update:", err)
+				// TODO: until updates get thrown out, this is too noisy to log
 			}
 		}
 
@@ -132,6 +142,62 @@ func ListenerWorker() {
 }
 
 // TODO: add workers to monitor heartbeats and send heartbeats
+func HeartbeatWorker(clientID uint64, peerConn *clientlib.ClientClockRemote) {
+	for {
+		// Peer has been removed; stop sending heartbeats
+		//if _, ok := peers[clientID]; !ok {
+		//	log.Printf("Peer %d has failed; no longer sending heartbeats", clientID)
+		//	peerLock.Unlock()
+		//	return
+		//}
+
+		beat := make(chan error, 1)
+
+		go func() { beat <- peerConn.Heartbeat(NetworkSettings.UniqueUserID) }()
+
+		select {
+		case e := <-beat:
+			if e != nil {
+				// TODO handle disconnection
+				log.Printf("Could not send heartbeat. Peer with ID %d is disconnected\n", clientID)
+				continue
+			}
+			// TODO The client has reconnected; reset to true
+			log.Printf("Sent heartbeat to peer with ID %d\n", clientID)
+
+		case <-time.After(HEARTBEAT_INTERVAL):
+			// TODO handle disconnection
+			log.Printf("Could not send heartbeat. Peer with ID %d is disconnected\n", clientID)
+		}
+
+		time.Sleep(HEARTBEAT_INTERVAL)
+	}
+}
+
+func HeartbeatMonitorWorker(clientID uint64) {
+	time.Sleep(HEARTBEAT_INTERVAL * 2) // Grace period before monitoring begins
+	for {
+		peerLock.Lock()
+		// Peer has been removed; stop monitoring
+		//if _, ok := peers[clientID]; !ok {
+		//	peerLock.Unlock()
+		//	continue //return
+		//}
+
+		// Check time since last heartbeat
+		if time.Since(peers[clientID].LastHeartbeat) > (HEARTBEAT_INTERVAL) {
+			log.Printf("Did not receive heartbeat on time. Peer with ID %d has timed out\n", clientID)
+			// TODO Handle peer failure
+			peerLock.Unlock()
+			continue //return
+		}
+
+		log.Printf("Received heartbeat. Peer with ID %d is alive\n", clientID)
+		peerLock.Unlock()
+		time.Sleep(HEARTBEAT_INTERVAL)
+	}
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -142,7 +208,7 @@ func (*ClientListener) NotifyUpdate(clientID uint64, update clientlib.Update) er
 	return nil
 }
 
-func (*ClientListener) Register(clientID uint64, address string) error {
+func (*ClientListener) Register(clientID uint64, address string, tcpAddress string) error {
 	log.Println("Register", clientID, "address", address)
 
 	// Try to connect
@@ -156,13 +222,19 @@ func (*ClientListener) Register(clientID uint64, address string) error {
 		return err
 	}
 
-	// TODO: hook up to TCP connection as well, start sending heartbeats
+	client, err := rpc.Dial("tcp", tcpAddress)
+	if err != nil {
+		return err
+	}
+	clockClient := clientlib.NewClientClockRemoteAPI(client)
+	go HeartbeatWorker(clientID, clockClient)
 
 	// Write down this new peer
 	peerLock.Lock()
 	peers[clientID] = &PeerRecord{
 		ClientID: clientID,
 		Api: clientlib.NewClientAPIRemote(conn),
+		// No need to set LastHeartbeat; will be sending heartbeats to this peer, not monitoring them.
 	}
 	peerLock.Unlock()
 

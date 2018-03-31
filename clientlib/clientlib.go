@@ -16,7 +16,7 @@ type PeerNetSettings struct {
 
 type ClientAPI interface {
 	NotifyUpdate(clientID uint64, update Update) error
-	Register(clientID uint64, address string) error
+	Register(clientID uint64, address string, tcpAddress string) error
 }
 
 type ClientAPIRemote struct {
@@ -80,11 +80,12 @@ func (a *ClientAPIRemote) NotifyUpdate(clientID uint64, update Update) error {
 	})
 }
 
-func (a *ClientAPIRemote) Register(clientID uint64, address string) error {
+func (a *ClientAPIRemote) Register(clientID uint64, address string, tcpAddress string) error {
 	return a.doAPICall(ClientMessage{
 		Kind: REGISTER,
 		ClientID: clientID,
 		Address: address,
+		TcpAddress: tcpAddress,
 	})
 }
 
@@ -114,7 +115,7 @@ func (l *ClientAPIListener) Accept() error {
 		// NotifyUpdate doesn't need a response
 		return l.table.NotifyUpdate(msg.ClientID, msg.Update)
 	case REGISTER:
-		err = l.table.Register(msg.ClientID, msg.Address)
+		err = l.table.Register(msg.ClientID, msg.Address, msg.TcpAddress)
 	}
 
 	// Send a reply

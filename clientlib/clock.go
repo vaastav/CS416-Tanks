@@ -8,6 +8,7 @@ import (
 type ClientClockAPI interface {
 	TimeRequest() (time.Time, error)
 	SetOffset(offset time.Duration) error
+	Heartbeat(clientID uint64) error
 }
 
 type ClientClockRemote struct {
@@ -50,6 +51,17 @@ func (c *ClientClockRemote) SetOffset(offset time.Duration) error {
 	var ack bool
 
 	if err := c.doApiCall("ClockController.SetOffset", &request, &ack); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *ClientClockRemote) Heartbeat(clientID uint64) error {
+	request := clientID
+	var ack bool
+
+	if err := c.doApiCall("ClockController.Heartbeat", &request, &ack); err != nil {
 		return err
 	}
 
