@@ -79,7 +79,7 @@ func (s *TankServer) syncClocks() {
 	}
 
 	m := make(map[uint64]time.Duration)
-	var offsetTotal time.Duration = 0
+	var offsetTotal time.Duration = Clock.Offset
 	var offsetNum time.Duration = 1
 
 	for key, connection := range connections.m {
