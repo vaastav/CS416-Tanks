@@ -26,13 +26,12 @@ func (c *ClockController) Heartbeat(clientID uint64, ack *bool) error {
 	if _, ok := peers[clientID]; !ok {
 		return nil // Return error?
 	}
-	peers[clientID].LastHeartbeat = time.Now()
+	peers[clientID].LastHeartbeat = Clock.GetCurrentTime()
 
 	return nil
 }
 
 func ClockWorker() {
-	// TODO: this listens to TCP connection
 	inbound, err := net.ListenTCP("tcp", RPCAddr)
 	if err != nil {
 		// OK to exit here; we can't handle this failure

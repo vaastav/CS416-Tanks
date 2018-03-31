@@ -1,5 +1,4 @@
 - Add a shooting mechanic
 - Stats collection
 - Validation of updates
-- Heartbeats
 - Notify failures

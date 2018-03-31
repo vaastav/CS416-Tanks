@@ -10,7 +10,7 @@ type ServerAPI interface {
 	Register(address string, rpcAddress string, clientID uint64, displayName string) (clientlib.PeerNetSettings, error)
 	Connect(clientID uint64) (bool, error)
 	GetNodes(clientID uint64) ([]PeerInfo, error)
-	// TODO: add method to notify server of a peer disconnection
+	NotifyDisconnection(clientID uint64) (bool, error) // TODO: include reporter ID
 }
 
 type RPCServerAPI struct {
@@ -24,7 +24,7 @@ type PeerInfo struct {
 	DisplayName string
 }
 
-// Error defintions
+// Error definitions
 
 type DisconnectedError string
 
@@ -76,4 +76,14 @@ func (r *RPCServerAPI) GetNodes(clientID uint64) ([]PeerInfo, error) {
 	}
 
 	return nodes, nil
+}
+
+func (r *RPCServerAPI) NotifyDisconnection(clientID uint64) (bool, error) {
+	var ack bool
+
+	if err := r.doApiCall("TankServer.NotifyDisconnection", &clientID, &ack); err != nil {
+		return false, err
+	}
+
+	return ack, nil
 }

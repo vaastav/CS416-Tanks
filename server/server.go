@@ -143,7 +143,7 @@ func (s *TankServer) syncClocks() {
 }
 
 func (s *TankServer) Register (peerInfo serverlib.PeerInfo, settings *clientlib.PeerNetSettings) error {
-	log.Println("register", peerInfo.ClientID)
+	log.Println("Register()", peerInfo.ClientID)
 	var incomingMessage int
 	Logger.UnpackReceive("[Register] received from client", encodeToByte(peerInfo), &incomingMessage)
 	newSettings := clientlib.PeerNetSettings{
@@ -168,7 +168,7 @@ func (s *TankServer) Register (peerInfo serverlib.PeerInfo, settings *clientlib.
 }
 
 func (s *TankServer) Connect (clientID uint64, ack *bool) error {
-	log.Println("connect", clientID)
+	log.Println("Connect()", clientID)
 	var incomingMessage int
 	Logger.UnpackReceive("[Connect] received from client", encodeToByte(clientID), &incomingMessage)
 	connections.Lock()
@@ -179,7 +179,7 @@ func (s *TankServer) Connect (clientID uint64, ack *bool) error {
 	}
 	if c.status == CONNECTED {
 		connections.Unlock()
-		return errors.New("client already connected")
+		return errors.New("[Connect] client already connected")
 	}
 	c.status = CONNECTED
 	connections.m[clientID] = c
@@ -191,7 +191,7 @@ func (s *TankServer) Connect (clientID uint64, ack *bool) error {
 }
 
 func (s *TankServer) GetNodes (clientID uint64, addrSet *[]serverlib.PeerInfo) error {
-	log.Println("getnodes", clientID)
+	log.Println("GetNodes()", clientID)
 	var incomingMessage int
 	Logger.UnpackReceive("[GetNodes] received from client", encodeToByte(clientID), &incomingMessage)
 	connections.RLock()
@@ -201,6 +201,7 @@ func (s *TankServer) GetNodes (clientID uint64, addrSet *[]serverlib.PeerInfo) e
 		return InvalidClientError(clientID)
 	}
 
+	// TODO: return only connected peers
 	peerAddresses := make([]serverlib.PeerInfo, 0, len(connections.m)-1)
 
 	for key, connection := range connections.m {
@@ -216,6 +217,12 @@ func (s *TankServer) GetNodes (clientID uint64, addrSet *[]serverlib.PeerInfo) e
 
 	// TODO : Filter the addresses better for network topology
 	*addrSet = peerAddresses
+	return nil
+}
+
+func (s *TankServer) NotifyDisconnection(clientID uint64, ack *bool) error {
+	// TODO: mark client disconnected
+	*ack = true
 	return nil
 }
 

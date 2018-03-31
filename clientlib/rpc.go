@@ -12,6 +12,7 @@ type ClientMessage struct {
 	Update Update
 	Address string
 	TcpAddress string
+	Ttl int
 }
 
 type ClientReply struct {
@@ -29,6 +30,7 @@ const (
 
 const (
 	UPDATE ClientMessageKind = iota
+	FAILURE
 	REGISTER
 )
 

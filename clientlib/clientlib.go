@@ -16,6 +16,7 @@ type PeerNetSettings struct {
 
 type ClientAPI interface {
 	NotifyUpdate(clientID uint64, update Update) error
+	NotifyFailure(clientID uint64, ttl int) error
 	Register(clientID uint64, address string, tcpAddress string) error
 }
 
@@ -60,7 +61,7 @@ func (a *ClientAPIRemote) doAPICall(msg ClientMessage) error {
 	panic("Unreachable")
 }
 
-func (a *ClientAPIRemote) goAPICall(msg ClientMessage) error {
+func (a *ClientAPIRemote) doAPICallAsync(msg ClientMessage) error {
 	// Send our message
 	err := SendMessage(a.conn, nil, &msg)
 	if err != nil {
@@ -71,12 +72,19 @@ func (a *ClientAPIRemote) goAPICall(msg ClientMessage) error {
 	return nil
 }
 
-// NotifyUpdate is async, does not wait for a reply
 func (a *ClientAPIRemote) NotifyUpdate(clientID uint64, update Update) error {
-	return a.goAPICall(ClientMessage{
+	return a.doAPICallAsync(ClientMessage{
 		Kind: UPDATE,
 		ClientID: clientID,
 		Update: update,
+	})
+}
+
+func (a *ClientAPIRemote) NotifyFailure(clientID uint64, ttl int) error {
+	return a.doAPICallAsync(ClientMessage{
+		Kind: FAILURE,
+		ClientID: clientID,
+		Ttl: ttl,
 	})
 }
 
@@ -114,6 +122,8 @@ func (l *ClientAPIListener) Accept() error {
 	case UPDATE:
 		// NotifyUpdate doesn't need a response
 		return l.table.NotifyUpdate(msg.ClientID, msg.Update)
+	case FAILURE:
+		return l.table.NotifyFailure(msg.ClientID, msg.Ttl)
 	case REGISTER:
 		err = l.table.Register(msg.ClientID, msg.Address, msg.TcpAddress)
 	}
