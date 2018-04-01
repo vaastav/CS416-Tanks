@@ -4,7 +4,7 @@ import (
 	"io/ioutil"
 	"path"
 	"path/filepath"
-	"proj2_f4u9a_g8z9a_i4x8_s8a9/crdtlib"
+	"../crdtlib"
 	"strconv"
 	"strings"
 )
