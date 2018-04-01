@@ -105,6 +105,16 @@ func main() {
 	localPlayer = NewPlayer(NetworkSettings.UniqueUserID)
 	localPlayer.Pos = windowCfg.Bounds.Center()
 
+	// ---------------------------------------------------------------------------
+
+	// KV: Setup the key-value store.
+	KVMap.M, err = KVStoreSetup()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// ---------------------------------------------------------------------------
+
 	// Start workers
 	go PeerWorker()
 	go RecordWorker()

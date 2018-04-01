@@ -128,7 +128,7 @@ func (s *TankServer) KVGet(arg *crdtlib.GetArg, reply *crdtlib.GetReply) error {
 		reply.Ok = false
 		reply.HasAlready = false
 		reply.Unavailable = true
-		return nil
+		return KeyUnavailableError(key)
 	}
 
 	// If this client itself has this key-value pair, indicate this in the
