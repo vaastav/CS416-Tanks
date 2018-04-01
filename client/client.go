@@ -11,16 +11,17 @@ import (
 	"math"
 	"math/rand"
 	"net"
+	"net/http"
+	_ "net/http/pprof"
 	"net/rpc"
 	"os"
 	"proj2_f4u9a_g8z9a_i4x8_s8a9/clientlib"
 	"proj2_f4u9a_g8z9a_i4x8_s8a9/clocklib"
+	"proj2_f4u9a_g8z9a_i4x8_s8a9/crdtlib"
 	"proj2_f4u9a_g8z9a_i4x8_s8a9/serverlib"
-	"time"
-
-	"net/http"
-	_ "net/http/pprof"
 	"strconv"
+	"sync"
+	"time"
 )
 
 var (
@@ -37,12 +38,17 @@ var (
 	RPCAddr         *net.TCPAddr
 	UpdateChannel                          = make(chan clientlib.Update, 1000)
 	Clock           *clocklib.ClockManager = &clocklib.ClockManager{0}
+	KVMap                                  = struct {
+		sync.RWMutex
+		M map[int]crdtlib.ValueType
+	}{M: make(map[int]crdtlib.ValueType)}
+	KVDir  = "stats-directory"
+	Server serverlib.ServerAPI
 )
 
 var (
 	playerPic   pixel.Picture
 	localPlayer *Player
-	server      serverlib.ServerAPI
 	players     = make(map[uint64]*Player)
 )
 
@@ -75,13 +81,13 @@ func main() {
 		log.Fatal(err)
 	}
 
-	server = serverlib.NewRPCServerAPI(client)
-	NetworkSettings, err = server.Register(localAddrString, address, rand.Uint64(), "Wednesday")
+	Server = serverlib.NewRPCServerAPI(client)
+	NetworkSettings, err = Server.Register(localAddrString, address, rand.Uint64(), "Wednesday")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	ack, err := server.Connect(NetworkSettings.UniqueUserID)
+	ack, err := Server.Connect(NetworkSettings.UniqueUserID)
 	if err != nil {
 		log.Fatal(err)
 	}

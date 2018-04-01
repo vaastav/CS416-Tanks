@@ -39,7 +39,7 @@ func PeerWorker() {
 }
 
 func getMorePeers() {
-	newPeers, err := server.GetNodes(NetworkSettings.UniqueUserID)
+	newPeers, err := Server.GetNodes(NetworkSettings.UniqueUserID)
 	if err != nil {
 		log.Fatal(err)
 	}
