@@ -15,6 +15,12 @@ type ClientClockRemote struct {
 	api *rpc.Client
 }
 
+type Status int
+const (
+	CONNECTED Status = iota
+	DISCONNECTED
+)
+
 type DisconnectedError string
 
 func (e DisconnectedError) Error() string {

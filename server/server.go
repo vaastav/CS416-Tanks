@@ -1,6 +1,6 @@
 /*
 	Implements a thin server for P2P Battle Tanks game for CPSC 416 Project 2.
-	This server is responsible for peer discovery and clock synchronisation
+	This server is responsible for peer discovery and clock synchronization
 
 	Usage:
 		go run server.go <IP Address : Port>
@@ -26,17 +26,8 @@ import (
 
 type TankServer int
 
-type Status int
-
-const (
-	// Connected mode.
-	DISCONNECTED Status = iota
-	// Disconnected mode.
-	CONNECTED
-)
-
 type Connection struct {
-	status Status
+	status clientlib.Status
 	displayName string
 	address string
 	rpcAddress string
@@ -58,6 +49,11 @@ var connections = struct {
 	sync.RWMutex
 	m map[uint64]Connection
 }{m : make(map[uint64]Connection)}
+
+var disconnectedNodes = struct {
+	sync.RWMutex
+	m map[uint64][]uint64 /* key = disconnected node ID; value = list of node IDs who've reported node as disconnected */
+}{m : make(map[uint64][]uint64)}
 
 var Logger *govec.GoLog
 
@@ -83,11 +79,11 @@ func (s *TankServer) syncClocks() {
 	var offsetNum time.Duration = 1
 
 	for key, connection := range connections.m {
-		if connection.status == DISCONNECTED {
+		if connection.status == clientlib.DISCONNECTED {
 			continue
 		}
 		s := fmt.Sprintf("Requesting client %d for time", key)
-		// Update to preapre send
+		// Update to prepare send
 		Logger.LogLocalEvent(s)
 		client, err := rpc.Dial("tcp", connection.rpcAddress)
 		if err != nil {
@@ -114,7 +110,7 @@ func (s *TankServer) syncClocks() {
 	offsetAverage := offsetTotal / offsetNum
 
 	for key, connection := range connections.m {
-		if connection.status == DISCONNECTED {
+		if connection.status == clientlib.DISCONNECTED {
 			continue
 		}
 
@@ -156,7 +152,7 @@ func (s *TankServer) Register (peerInfo serverlib.PeerInfo, settings *clientlib.
 
 	connections.Lock()
 	connections.m[peerInfo.ClientID] = Connection{
-		status: DISCONNECTED,
+		status: clientlib.DISCONNECTED,
 		displayName: peerInfo.DisplayName,
 		address: peerInfo.Address,
 		rpcAddress: peerInfo.RPCAddress,
@@ -177,11 +173,11 @@ func (s *TankServer) Connect (clientID uint64, ack *bool) error {
 		connections.Unlock()
 		return InvalidClientError(clientID)
 	}
-	if c.status == CONNECTED {
+	if c.status == clientlib.CONNECTED {
 		connections.Unlock()
 		return errors.New("[Connect] client already connected")
 	}
-	c.status = CONNECTED
+	c.status = clientlib.CONNECTED
 	connections.m[clientID] = c
 	connections.Unlock()
 	*ack = true
@@ -201,13 +197,14 @@ func (s *TankServer) GetNodes (clientID uint64, addrSet *[]serverlib.PeerInfo) e
 		return InvalidClientError(clientID)
 	}
 
-	// TODO: return only connected peers
+	// TODO: Maybe don't return ALL peers...
 	peerAddresses := make([]serverlib.PeerInfo, 0, len(connections.m)-1)
 
 	for key, connection := range connections.m {
-		if key == clientID {
+		if key == clientID || connection.status == clientlib.DISCONNECTED {
 			continue
 		}
+
 		peerAddresses = append(peerAddresses, serverlib.PeerInfo{
 			Address: connection.address,
 			ClientID: key,
@@ -220,10 +217,107 @@ func (s *TankServer) GetNodes (clientID uint64, addrSet *[]serverlib.PeerInfo) e
 	return nil
 }
 
-func (s *TankServer) NotifyDisconnection(clientID uint64, ack *bool) error {
-	// TODO: mark client disconnected
+// Notify server that node PeerID has either disconnected or reconnected.
+func (s *TankServer) NotifyConnection(connectionInfo serverlib.ConnectionInfo, ack *bool) error {
+	var status string
+	if connectionInfo.Status == clientlib.CONNECTED {
+		status = "connected"
+	} else {
+		status = "disconnected"
+	}
+	log.Printf("[NotifyConnection] Node %d reported as %s by node %d\n", connectionInfo.PeerID, status, connectionInfo.ReporterID)
+
+	connections.Lock()
+	defer connections.Unlock()
+	disconnectedNodes.Lock()
+	defer disconnectedNodes.Unlock()
+
+	if _, exists := connections.m[connectionInfo.PeerID]; !exists {
+		log.Printf("[NotifyConnection] Node with ID %d does not exist\n", connectionInfo.PeerID)
+		*ack = false
+		return nil
+	}
+	conn := connections.m[connectionInfo.PeerID]
+
+	if connectionInfo.Status == clientlib.DISCONNECTED {
+		// Option #1: node reports that node PeerID has disconnected
+		if conn.status == clientlib.CONNECTED {
+			conn.status = clientlib.DISCONNECTED
+			connections.m[connectionInfo.PeerID] = conn
+		}
+
+		// Add reporting peer's ID to list
+		if disconnected, exists := disconnectedNodes.m[connectionInfo.PeerID]; !exists {
+			disconnectedNodes.m[connectionInfo.PeerID] = []uint64{connectionInfo.ReporterID}
+			// Notify disconnected node of their state? (our assumption is server is always reachable) TODO
+		} else {
+			disconnectedNodes.m[connectionInfo.PeerID] = append(disconnected, connectionInfo.ReporterID)
+		}
+	} else {
+		// Option #2: node reports that node PeerID has reconnected
+		// Remove reporterID from list of 'reporters'
+		if disconnected, exists := disconnectedNodes.m[connectionInfo.PeerID]; exists {
+			disconnectedNodes.m[connectionInfo.PeerID] = removeId(disconnected, connectionInfo.ReporterID)
+		} else {
+			log.Printf("[NotifyConnection] Node with ID %d is already marked as connected\n", connectionInfo.PeerID)
+			*ack = false
+			return nil
+		}
+
+		// If no reporters remaining (i.e. they've all reconnected) mark node connected
+		if len(disconnectedNodes.m[connectionInfo.PeerID]) == 0 {
+			delete(disconnectedNodes.m, connectionInfo.PeerID)
+			conn.status = clientlib.CONNECTED
+			connections.m[connectionInfo.PeerID] = conn
+			// Notify reconnected node of their state TODO
+		}
+	}
+
 	*ack = true
 	return nil
+}
+
+func monitorConnections() {
+	for {
+		disconnectedNodes.Lock()
+		for nodeID, reporters := range disconnectedNodes.m {
+			// 1. Ensure node is in fact disconnected
+			connections.RLock()
+			if conn, _ := connections.m[nodeID]; conn.status == clientlib.CONNECTED {
+				delete(disconnectedNodes.m, nodeID)
+				connections.RUnlock()
+				break
+			}
+			connections.RUnlock()
+
+			// 2. Check for disconnected reporters; remove them from node's list
+			for _, reporterID := range reporters {
+				if _, exists := disconnectedNodes.m[reporterID]; exists {
+					disconnectedNodes.m[nodeID] = removeId(disconnectedNodes.m[nodeID], reporterID)
+				}
+			}
+
+			// 3. If no reporters remaining, remove node from map and mark as reconnected
+			if len(reporters) == 0 {
+				delete(disconnectedNodes.m, nodeID)
+				connections.Lock()
+				conn := connections.m[nodeID]
+				conn.status = clientlib.CONNECTED
+				connections.m[nodeID] = conn
+				connections.Unlock()
+			}
+		}
+		disconnectedNodes.Unlock()
+	}
+}
+
+func removeId(ids []uint64, id uint64) []uint64 {
+	for i, v := range ids {
+		if v == id {
+			return append(ids[:i], ids[i+1:]...)
+		}
+	}
+	return ids
 }
 
 func main() {
@@ -233,22 +327,22 @@ func main() {
 		log.Fatal("Usage: go run server.go <IP Address : Port>")
 	}
 	ipAddr := os.Args[1]
-	// TODO : Does the server need to have its connection as UDP as well?
-	// I imagine we can let it be as TCP
+
 	serverAddr, err := net.ResolveTCPAddr("tcp", ipAddr)
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	inbound, err := net.ListenTCP("tcp", serverAddr)
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	go monitorConnections()
+
 	Logger = govec.InitGoVector("server", "serverlogfile")
 	server := new(TankServer)
 	rpc.Register(server)
-	fmt.Println("Listening now")
+	log.Println("Listening now")
 	Logger.LogLocalEvent("Listening Now")
 	rpc.Accept(inbound)
 }
