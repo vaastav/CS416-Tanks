@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 	"net"
-	"proj2_f4u9a_g8z9a_i4x8_s8a9/clientlib"
+	"../clientlib"
 	"sync"
 	"time"
 )
@@ -39,7 +39,7 @@ func PeerWorker() {
 }
 
 func getMorePeers() {
-	newPeers, err := Server.GetNodes(NetworkSettings.UniqueUserID)
+	newPeers, err := Server.GetNodes(NetworkSettings.UniqueUserID, Logger)
 	if err != nil {
 		log.Fatal(err)
 	}
