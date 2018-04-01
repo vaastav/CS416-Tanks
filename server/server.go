@@ -17,10 +17,10 @@ import (
 	"net"
 	"net/rpc"
 	"os"
-	"proj2_f4u9a_g8z9a_i4x8_s8a9/clientlib"
-	"proj2_f4u9a_g8z9a_i4x8_s8a9/clocklib"
-	"proj2_f4u9a_g8z9a_i4x8_s8a9/crdtlib"
-	"proj2_f4u9a_g8z9a_i4x8_s8a9/serverlib"
+	"../clientlib"
+	"../clocklib"
+	"../crdtlib"
+	"../serverlib"
 	"sync"
 	"time"
 )
@@ -269,19 +269,17 @@ func (s *TankServer) syncClocks() {
 		if connection.status == DISCONNECTED {
 			continue
 		}
-		s := fmt.Sprintf("Requesting client %d for time", key)
-		// Update to preapre send
-		Logger.LogLocalEvent(s)
 		client, err := rpc.Dial("tcp", connection.rpcAddress)
 		if err != nil {
 			// TODO : Better failure handling
+			// Probably wanna mark the client DISCONNECTED
 			log.Fatal(err)
 		}
 
 		before := Clock.GetCurrentTime()
 
 		clockClient := clientlib.NewClientClockRemoteAPI(client)
-		t, err := clockClient.TimeRequest()
+		t, err := clockClient.TimeRequest(Logger)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -301,9 +299,6 @@ func (s *TankServer) syncClocks() {
 			continue
 		}
 
-		// Update to prepare send
-		s := fmt.Sprintf("Telling client %d to set offset", key)
-		Logger.LogLocalEvent(s)
 		client, err := rpc.Dial("tcp", connection.rpcAddress)
 		if err != nil {
 			// TODO : Better failure handling
@@ -315,7 +310,7 @@ func (s *TankServer) syncClocks() {
 		connections.m[key] = connection
 
 		clockClient := clientlib.NewClientClockRemoteAPI(client)
-		err = clockClient.SetOffset(offset)
+		err = clockClient.SetOffset(offset, Logger)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -325,17 +320,19 @@ func (s *TankServer) syncClocks() {
 	connections.Unlock()
 }
 
-func (s *TankServer) Register(peerInfo serverlib.PeerInfo, settings *clientlib.PeerNetSettings) error {
+func (s *TankServer) Register (peerInfo serverlib.PeerInfo, settings *serverlib.PeerSettingsRequest) error {
 	log.Println("register", peerInfo.ClientID)
-	var incomingMessage int
-	Logger.UnpackReceive("[Register] received from client", encodeToByte(peerInfo), &incomingMessage)
+	var incomingMessage string
+	Logger.UnpackReceive("[Register] request received from client", peerInfo.B, &incomingMessage)
+	fmt.Println(incomingMessage)
 	newSettings := clientlib.PeerNetSettings{
 		MinimumPeerConnections: 1,
 		UniqueUserID:           peerInfo.ClientID,
 		DisplayName:            peerInfo.DisplayName,
 	}
 
-	*settings = newSettings
+	b := Logger.PrepareSend("[Register] request accepted from client", peerInfo.ClientID)
+	*settings = serverlib.PeerSettingsRequest{newSettings, b}
 
 	connections.Lock()
 	connections.m[peerInfo.ClientID] = Connection{
@@ -350,37 +347,49 @@ func (s *TankServer) Register(peerInfo serverlib.PeerInfo, settings *clientlib.P
 	return nil
 }
 
-func (s *TankServer) Connect(clientID uint64, ack *bool) error {
+func (s *TankServer) Connect (clientReq serverlib.ClientIDRequest, response *serverlib.ConnectResponse) error {
+	clientID := clientReq.ClientID
 	log.Println("connect", clientID)
 	var incomingMessage int
-	Logger.UnpackReceive("[Connect] received from client", encodeToByte(clientID), &incomingMessage)
+	Logger.UnpackReceive("[Connect] received from client", clientReq.B, &incomingMessage)
 	connections.Lock()
 	c, ok := connections.m[clientID]
 	if !ok {
 		connections.Unlock()
+		ack := false
+		b := Logger.PrepareSend("[Connect] Request rejected from client", ack)
+		*response = serverlib.ConnectResponse{ack, b}
 		return InvalidClientError(clientID)
 	}
 	if c.status == CONNECTED {
 		connections.Unlock()
+		ack := false
+		b := Logger.PrepareSend("[Connect] Request rejected from client", ack)
+		*response = serverlib.ConnectResponse{ack, b}
 		return errors.New("client already connected")
 	}
 	c.status = CONNECTED
 	connections.m[clientID] = c
 	connections.Unlock()
-	*ack = true
+	ack := true
+	b := Logger.PrepareSend("[Connect] Request accepted from client", ack)
+	*response = serverlib.ConnectResponse{ack, b}
 	// Sync clock with the new client
 	go s.syncClocks()
 	return nil
 }
 
-func (s *TankServer) GetNodes(clientID uint64, addrSet *[]serverlib.PeerInfo) error {
+func (s *TankServer) GetNodes (clientReq serverlib.ClientIDRequest, addrSet *serverlib.GetNodesResponse) error {
+	clientID := clientReq.ClientID
 	log.Println("getnodes", clientID)
 	var incomingMessage int
-	Logger.UnpackReceive("[GetNodes] received from client", encodeToByte(clientID), &incomingMessage)
+	Logger.UnpackReceive("[GetNodes] received from client", clientReq.B, &incomingMessage)
 	connections.RLock()
 	defer connections.RUnlock()
 
 	if _, ok := connections.m[clientID]; !ok {
+		b := Logger.PrepareSend("[GetNodes] rejected from client", clientID)
+		*addrSet = serverlib.GetNodesResponse{nil, b}
 		return InvalidClientError(clientID)
 	}
 
@@ -398,7 +407,8 @@ func (s *TankServer) GetNodes(clientID uint64, addrSet *[]serverlib.PeerInfo) er
 	}
 
 	// TODO : Filter the addresses better for network topology
-	*addrSet = peerAddresses
+	b := Logger.PrepareSend("[GetNodes] accepted from client", clientID)
+	*addrSet = serverlib.GetNodesResponse{peerAddresses, b}
 	return nil
 }
 

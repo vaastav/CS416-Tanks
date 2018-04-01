@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/DistributedClocks/GoVector/govec"
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/imdraw"
 	"github.com/faiface/pixel/pixelgl"
@@ -15,10 +16,10 @@ import (
 	_ "net/http/pprof"
 	"net/rpc"
 	"os"
-	"proj2_f4u9a_g8z9a_i4x8_s8a9/clientlib"
-	"proj2_f4u9a_g8z9a_i4x8_s8a9/clocklib"
-	"proj2_f4u9a_g8z9a_i4x8_s8a9/crdtlib"
-	"proj2_f4u9a_g8z9a_i4x8_s8a9/serverlib"
+	"../clientlib"
+	"../clocklib"
+	"../crdtlib"
+	"../serverlib"
 	"strconv"
 	"sync"
 	"time"
@@ -44,6 +45,7 @@ var (
 	}{M: make(map[int]crdtlib.ValueType)}
 	KVDir  = "stats-directory"
 	Server serverlib.ServerAPI
+	Logger *govec.GoLog
 )
 
 var (
@@ -58,6 +60,7 @@ func main() {
 	// Connect to the server
 	serverAddr := os.Args[1]
 	localAddrString := os.Args[2]
+	display_name := os.Args[3]
 
 	var err error
 	LocalAddr, err = net.ResolveUDPAddr("udp", localAddrString)
@@ -81,13 +84,16 @@ func main() {
 		log.Fatal(err)
 	}
 
+	clientName := "client_" + display_name
+	Logger = govec.InitGoVector(clientName, clientName + "_logfile" )
 	Server = serverlib.NewRPCServerAPI(client)
-	NetworkSettings, err = Server.Register(localAddrString, address, rand.Uint64(), "Wednesday")
+	// TODO : Only register if a client ID is not already present
+	NetworkSettings, err = Server.Register(localAddrString, address, rand.Uint64(), display_name, Logger)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	ack, err := Server.Connect(NetworkSettings.UniqueUserID)
+	ack, err := Server.Connect(NetworkSettings.UniqueUserID, Logger)
 	if err != nil {
 		log.Fatal(err)
 	}

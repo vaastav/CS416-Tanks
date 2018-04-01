@@ -1,8 +1,9 @@
 package clientlib
 
 import (
+	"github.com/DistributedClocks/GoVector/govec"
 	"net/rpc"
-	"proj2_f4u9a_g8z9a_i4x8_s8a9/crdtlib"
+	"../crdtlib"
 	"time"
 )
 
@@ -15,6 +16,25 @@ type ClientClockAPI interface {
 
 type ClientClockRemote struct {
 	api *rpc.Client
+}
+
+type GetTimeRequest struct {
+	B []byte
+}
+
+type GetTimeResponse struct {
+	T time.Time
+	B []byte
+}
+
+type SetOffsetRequest struct {
+	Offset time.Duration
+	B []byte
+}
+
+type SetOffsetResponse struct {
+	Ack bool
+	B []byte
 }
 
 type DisconnectedError string
@@ -68,24 +88,30 @@ func (c *ClientClockRemote) KVClientPut(key int, value crdtlib.ValueType) error 
 
 // -----------------------------------------------------------------------------
 
-func (c *ClientClockRemote) TimeRequest() (time.Time, error) {
-	request := 0
+func (c *ClientClockRemote) TimeRequest(logger *govec.GoLog) (time.Time, error) {
 	var t time.Time
-
-	if err := c.doApiCall("ClockController.TimeRequest", &request, &t); err != nil {
+	var response GetTimeResponse
+	b := logger.PrepareSend("[TimeRequest] sending command to client", 0)
+	request := GetTimeRequest{b}
+	if err := c.doApiCall("ClockController.TimeRequest", &request, &response); err != nil {
+		logger.UnpackReceive("[TimeRequest] command failed", response.B, &t)
 		return time.Time{}, err
 	}
 
-	return t, nil
+	logger.UnpackReceive("[TimeRequest] command succeeded", response.B, &t)
+	return response.T, nil
 }
 
-func (c *ClientClockRemote) SetOffset(offset time.Duration) error {
-	request := offset
+func (c *ClientClockRemote) SetOffset(offset time.Duration, logger *govec.GoLog) error {
 	var ack bool
-
-	if err := c.doApiCall("ClockController.SetOffset", &request, &ack); err != nil {
+	var response SetOffsetResponse
+	b := logger.PrepareSend("[SetOffset] sending command to client", offset)
+	request := SetOffsetRequest{offset, b}
+	if err := c.doApiCall("ClockController.SetOffset", &request, &response); err != nil {
+		logger.UnpackReceive("[SetOffset] command failed", response.B, &ack)
 		return err
 	}
 
+	logger.UnpackReceive("[SetOffset] command succeeded", response.B, &ack)
 	return nil
 }
