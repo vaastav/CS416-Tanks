@@ -1,49 +1,49 @@
 package main
 
 import (
-	"github.com/faiface/pixel/pixelgl"
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/imdraw"
-	"log"
+	"github.com/faiface/pixel/pixelgl"
 	"golang.org/x/image/colornames"
 	"image"
-	"os"
-	"math/rand"
 	_ "image/png"
-	"time"
+	"log"
 	"math"
-	"../clientlib"
-	"../clocklib"
-	"../serverlib"
-	"net/rpc"
+	"math/rand"
 	"net"
+	"net/rpc"
+	"os"
+	"proj2_f4u9a_g8z9a_i4x8_s8a9/clientlib"
+	"proj2_f4u9a_g8z9a_i4x8_s8a9/clocklib"
+	"proj2_f4u9a_g8z9a_i4x8_s8a9/serverlib"
+	"time"
 
-	_ "net/http/pprof"
 	"net/http"
+	_ "net/http/pprof"
 	"strconv"
 )
 
 var (
 	windowCfg = pixelgl.WindowConfig{
-		Title: "Wednesday",
+		Title:  "Wednesday",
 		Bounds: pixel.R(0, 0, 1024, 768),
-		VSync: true,
+		VSync:  true,
 	}
 )
 
 var (
 	NetworkSettings clientlib.PeerNetSettings
-	LocalAddr *net.UDPAddr
-	RPCAddr *net.TCPAddr
-	UpdateChannel = make(chan clientlib.Update, 1000)
-	Clock *clocklib.ClockManager = &clocklib.ClockManager{0}
+	LocalAddr       *net.UDPAddr
+	RPCAddr         *net.TCPAddr
+	UpdateChannel                          = make(chan clientlib.Update, 1000)
+	Clock           *clocklib.ClockManager = &clocklib.ClockManager{0}
 )
 
 var (
-	playerPic pixel.Picture
-	localPlayer   *Player
-	server serverlib.ServerAPI
-	players = make(map[uint64]*Player)
+	playerPic   pixel.Picture
+	localPlayer *Player
+	server      serverlib.ServerAPI
+	players     = make(map[uint64]*Player)
 )
 
 func main() {
@@ -60,10 +60,10 @@ func main() {
 	}
 
 	go func() {
-		log.Println(http.ListenAndServe("localhost:" + strconv.Itoa(LocalAddr.Port + 20), nil))
+		log.Println(http.ListenAndServe("localhost:"+strconv.Itoa(LocalAddr.Port+20), nil))
 	}()
 
-	address := LocalAddr.IP.String() + ":" + strconv.Itoa(LocalAddr.Port + 5)
+	address := LocalAddr.IP.String() + ":" + strconv.Itoa(LocalAddr.Port+5)
 	RPCAddr, err = net.ResolveTCPAddr("tcp", address)
 	if err != nil {
 		log.Fatal(err)

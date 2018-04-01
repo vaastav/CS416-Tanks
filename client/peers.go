@@ -1,16 +1,16 @@
 package main
 
 import (
-	"../clientlib"
-	"net"
 	"log"
+	"net"
+	"proj2_f4u9a_g8z9a_i4x8_s8a9/clientlib"
 	"sync"
 	"time"
 )
 
 type PeerRecord struct {
 	ClientID uint64
-	Api *clientlib.ClientAPIRemote
+	Api      *clientlib.ClientAPIRemote
 }
 
 type ClientListener int
@@ -21,7 +21,7 @@ var (
 
 var (
 	peerLock = sync.Mutex{}
-	peers = make(map[uint64]*PeerRecord)
+	peers    = make(map[uint64]*PeerRecord)
 )
 
 func PeerWorker() {
@@ -81,13 +81,13 @@ func newPeer(id uint64, addr string) (*PeerRecord, error) {
 
 	return &PeerRecord{
 		ClientID: id,
-		Api: api,
+		Api:      api,
 	}, nil
 }
 
 func OutgoingWorker() {
 	for {
-		update := <- OutgoingUpdates
+		update := <-OutgoingUpdates
 
 		peerLock.Lock()
 
@@ -150,7 +150,7 @@ func (*ClientListener) Register(clientID uint64, address string) error {
 	peerLock.Lock()
 	peers[clientID] = &PeerRecord{
 		ClientID: clientID,
-		Api: clientlib.NewClientAPIRemote(conn),
+		Api:      clientlib.NewClientAPIRemote(conn),
 	}
 	peerLock.Unlock()
 
