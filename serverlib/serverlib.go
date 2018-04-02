@@ -146,6 +146,6 @@ func (r *RPCServerAPI) GetNodes(clientID uint64, logger *govec.GoLog) ([]PeerInf
 		return nil, err
 	}
 
-	logger.UnpackReceive("[GetNodes] request rejected by server", response.B, &id)
+	logger.UnpackReceive("[GetNodes] request accepted by server", response.B, &id)
 	return response.Nodes, nil
 }
