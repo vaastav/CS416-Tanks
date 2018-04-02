@@ -1,13 +1,10 @@
 package main
 
 import (
-	// "../clientlib"
-	"proj2_f4u9a_g8z9a_i4x8_s8a9/clientlib"
-	// "../clocklib"
-	"proj2_f4u9a_g8z9a_i4x8_s8a9/clocklib"
-	// "../crdtlib"
-	"proj2_f4u9a_g8z9a_i4x8_s8a9/crdtlib"
-	// "../serverlib"
+	"../clientlib"
+	"../clocklib"
+	"../crdtlib"
+	"../serverlib"
 	"github.com/DistributedClocks/GoVector/govec"
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/imdraw"
@@ -23,7 +20,6 @@ import (
 	_ "net/http/pprof"
 	"net/rpc"
 	"os"
-	"proj2_f4u9a_g8z9a_i4x8_s8a9/serverlib"
 	"strconv"
 	"sync"
 	"time"
