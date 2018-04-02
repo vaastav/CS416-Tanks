@@ -46,6 +46,7 @@ var (
 	KVDir  = "stats-directory"
 	Server serverlib.ServerAPI
 	Logger *govec.GoLog
+	KVLogger *govec.GoLog
 )
 
 var (
@@ -84,8 +85,18 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// Setup govector loggers
 	clientName := "client_" + display_name
-	Logger = govec.InitGoVector(clientName, clientName+"_logfile")
+	statsName :=  clientName + "_stats"
+	Logger = govec.InitGoVector(clientName, clientName + "_logfile" )
+	KVLogger = govec.InitGoVector(statsName, statsName + "_logfile")
+
+	// KV: Setup the key-value store.
+	KVMap.M, err = KVStoreSetup()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	Server = serverlib.NewRPCServerAPI(client)
 	// TODO : Only register if a client ID is not already present
 	NetworkSettings, err = Server.Register(localAddrString, address, rand.Uint64(), display_name, Logger)
@@ -110,16 +121,6 @@ func main() {
 	// Create the local player
 	localPlayer = NewPlayer(NetworkSettings.UniqueUserID)
 	localPlayer.Pos = windowCfg.Bounds.Center()
-
-	// ---------------------------------------------------------------------------
-
-	// KV: Setup the key-value store.
-	KVMap.M, err = KVStoreSetup()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// ---------------------------------------------------------------------------
 
 	// Start workers
 	go PeerWorker()

@@ -12,8 +12,8 @@ type ServerAPI interface {
 	// -----------------------------------------------------------------------------
 
 	// KV: Key-value store API calls.
-	KVGet(key int, clientId uint64) (crdtlib.GetReply, error)
-	KVPut(key int, value crdtlib.ValueType) error
+	KVGet(key int, clientId uint64, logger *govec.GoLog) (crdtlib.GetReply, error)
+	KVPut(key int, value crdtlib.ValueType, logger *govec.GoLog) error
 
 	// -----------------------------------------------------------------------------
 	Register(address string, rpcAddress string, clientID uint64, displayName string, logger *govec.GoLog) (clientlib.PeerNetSettings, error)
@@ -53,6 +53,26 @@ type ConnectResponse struct {
 	B []byte
 }
 
+type KVGetRequest struct {
+	Arg crdtlib.GetArg
+	B []byte
+}
+
+type KVGetResponse struct {
+	Reply crdtlib.GetReply
+	B []byte
+}
+
+type KVPutRequest struct {
+	Arg crdtlib.PutArg
+	B []byte
+}
+
+type KVPutResponse struct {
+	Reply crdtlib.PutReply
+	B []byte
+}
+
 // Error definitions
 
 type DisconnectedError string
@@ -80,27 +100,35 @@ func (r *RPCServerAPI) doApiCall(call string, request interface{}, response inte
 
 // KV: Key-value store API call implementations.
 
-func (r *RPCServerAPI) KVGet(key int, clientId uint64) (crdtlib.GetReply, error) {
+func (r *RPCServerAPI) KVGet(key int, clientId uint64, logger *govec.GoLog) (crdtlib.GetReply, error) {
 
 	arg := crdtlib.GetArg{clientId, key}
 	var reply crdtlib.GetReply
-
-	if err := r.doApiCall("TankServer.KVGet", &arg, &reply); err != nil {
+	var response KVGetResponse
+	b := logger.PrepareSend("[KVGet] Sending get key request to server", clientId)
+	request := KVGetRequest{arg, b}
+	if err := r.doApiCall("TankServer.KVGet", &request, &response); err != nil {
+		logger.UnpackReceive("[KVGet] Get request to server errored out", response.B, &reply)
 		return crdtlib.GetReply{false, false, false, crdtlib.ValueType{0, 0}}, err
 	}
 
-	return reply, nil
+	logger.UnpackReceive("[KVGet] Get request to server succesful", response.B, &reply)
+	return response.Reply, nil
 }
 
-func (r *RPCServerAPI) KVPut(key int, value crdtlib.ValueType) error {
+func (r *RPCServerAPI) KVPut(key int, value crdtlib.ValueType, logger *govec.GoLog) error {
 
 	arg := crdtlib.PutArg{key, value}
 	var reply crdtlib.PutReply
-
-	if err := r.doApiCall("TankServer.KVPut", &arg, &reply); err != nil {
+	var response KVPutResponse
+	b := logger.PrepareSend("[KVPut] Sending request to server", key)
+	request := KVPutRequest{arg, b}
+	if err := r.doApiCall("TankServer.KVPut", &request, &response); err != nil {
+		logger.UnpackReceive("[KVPut] Put request to server errored out", response.B, &reply)
 		return err
 	}
 
+	logger.UnpackReceive("[KVPut] Put request to server successful", response.B, &reply)
 	return nil
 }
 
