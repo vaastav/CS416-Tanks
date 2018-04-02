@@ -1,8 +1,7 @@
 package clientlib
 
 import (
-	"bytes"
-	"encoding/gob"
+	"github.com/DistributedClocks/GoVector/govec"
 	"net"
 )
 
@@ -38,24 +37,21 @@ const (
 
 // Sends a message using conn, optionally to addr. If addr is null, whatever the remote
 // end of conn is receives the message.
-func SendMessage(conn *net.UDPConn, addr *net.UDPAddr, msg interface{}) error {
-	var buf bytes.Buffer
+func SendMessage(conn *net.UDPConn, addr *net.UDPAddr, msg interface{}, logger *govec.GoLog) error {
 
-	if err := gob.NewEncoder(&buf).Encode(msg); err != nil {
-		return err
-	}
+	buf := logger.PrepareSend("[SendMessage] sending message to peer", msg)
 
 	var err error
 	if addr == nil {
-		_, err = conn.Write(buf.Bytes())
+		_, err = conn.Write(buf)
 	} else {
-		_, err = conn.WriteTo(buf.Bytes(), addr)
+		_, err = conn.WriteTo(buf, addr)
 	}
 
 	return err
 }
 
-func ReceiveMessage(conn *net.UDPConn, msg interface{}) (*net.UDPAddr, error) {
+func ReceiveMessage(conn *net.UDPConn, msg interface{}, logger *govec.GoLog) (*net.UDPAddr, error) {
 	buf := make([]byte, 0x400)
 
 	n, addr, err := conn.ReadFromUDP(buf)
@@ -63,9 +59,7 @@ func ReceiveMessage(conn *net.UDPConn, msg interface{}) (*net.UDPAddr, error) {
 		return nil, err
 	}
 
-	if err := gob.NewDecoder(bytes.NewReader(buf[:n])).Decode(msg); err != nil {
-		return nil, err
-	}
+	logger.UnpackReceive("[ReceiveMessage] received message from peer", buf[:n], msg)
 
 	return addr, nil
 }

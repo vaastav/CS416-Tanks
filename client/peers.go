@@ -86,7 +86,7 @@ func newPeer(id uint64, addr string, rpcAddr string) (*PeerRecord, error) {
 	if err != nil {
 		return nil, err
 	}
-	api := clientlib.NewClientAPIRemote(conn)
+	api := clientlib.NewClientAPIRemote(conn, PeerLogger)
 
 	client, err := rpc.Dial("tcp", rpcAddr)
 	if err != nil {
@@ -136,7 +136,7 @@ func ListenerWorker() {
 	}
 
 	var listener ClientListener
-	apiListener := clientlib.NewClientAPIListener(&listener, conn)
+	apiListener := clientlib.NewClientAPIListener(&listener, conn, PeerLogger)
 
 	log.Println("Listening on", LocalAddr)
 
@@ -298,10 +298,15 @@ func (*ClientListener) Register(clientID uint64, address string, tcpAddress stri
 	// Write down this new peer
 	peerLock.Lock()
 	peers[clientID] = &PeerRecord{
+<<<<<<< d2282cb79284c029bd9bd77e1216ff69d7baf801
 		ClientID:      clientID,
 		Api:           clientlib.NewClientAPIRemote(conn),
 		Rpc:           clientlib.NewClientClockRemoteAPI(client),
 		LastHeartbeat: Clock.GetCurrentTime(),
+=======
+		ClientID: clientID,
+		Api:      clientlib.NewClientAPIRemote(conn, PeerLogger),
+>>>>>>> Add govector logging for shiviz
 	}
 	peerLock.Unlock()
 
