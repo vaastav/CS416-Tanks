@@ -27,7 +27,7 @@ func (c *ClockController) TimeRequest(request clientlib.GetTimeRequest, t * clie
 func (c *ClockController) SetOffset(request clientlib.SetOffsetRequest, response *clientlib.SetOffsetResponse) error {
 	var offset time.Duration
 	Logger.UnpackReceive("[SetOffset] command received from server", request.B, &offset)
-	Clock.Offset = request.Offset
+	Clock.SetOffset(request.Offset)
 	b := Logger.PrepareSend("[SetOffset] command executed", true)
 	*response = clientlib.SetOffsetResponse{true, b}
 	return nil

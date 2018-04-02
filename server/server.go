@@ -262,7 +262,7 @@ func (s *TankServer) syncClocks() {
 	}
 
 	m := make(map[uint64]time.Duration)
-	var offsetTotal time.Duration = Clock.Offset
+	var offsetTotal time.Duration = Clock.GetOffset()
 	var offsetNum time.Duration = 1
 
 	for key, connection := range connections.m {
@@ -316,7 +316,7 @@ func (s *TankServer) syncClocks() {
 		}
 	}
 	Logger.LogLocalEvent("Setting local clock offset")
-	Clock.Offset += offsetAverage
+	Clock.SetOffset(Clock.GetOffset() + offsetAverage)
 	connections.Unlock()
 }
 

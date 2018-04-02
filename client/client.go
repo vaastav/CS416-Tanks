@@ -1,6 +1,10 @@
 package main
 
 import (
+	"../clientlib"
+	"../clocklib"
+	"../crdtlib"
+	"../serverlib"
 	"github.com/DistributedClocks/GoVector/govec"
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/imdraw"
@@ -16,10 +20,6 @@ import (
 	_ "net/http/pprof"
 	"net/rpc"
 	"os"
-	"../clientlib"
-	"../clocklib"
-	"../crdtlib"
-	"../serverlib"
 	"strconv"
 	"sync"
 	"time"
@@ -37,9 +37,9 @@ var (
 	NetworkSettings clientlib.PeerNetSettings
 	LocalAddr       *net.UDPAddr
 	RPCAddr         *net.TCPAddr
-	UpdateChannel                          = make(chan clientlib.Update, 1000)
-	Clock           *clocklib.ClockManager = &clocklib.ClockManager{0}
-	KVMap                                  = struct {
+	UpdateChannel   = make(chan clientlib.Update, 1000)
+	Clock           = &clocklib.ClockManager{0}
+	KVMap           = struct {
 		sync.RWMutex
 		M map[int]crdtlib.ValueType
 	}{M: make(map[int]crdtlib.ValueType)}
@@ -85,7 +85,7 @@ func main() {
 	}
 
 	clientName := "client_" + display_name
-	Logger = govec.InitGoVector(clientName, clientName + "_logfile" )
+	Logger = govec.InitGoVector(clientName, clientName+"_logfile")
 	Server = serverlib.NewRPCServerAPI(client)
 	// TODO : Only register if a client ID is not already present
 	NetworkSettings, err = Server.Register(localAddrString, address, rand.Uint64(), display_name, Logger)
