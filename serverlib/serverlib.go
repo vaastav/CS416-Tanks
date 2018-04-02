@@ -3,8 +3,10 @@ package serverlib
 import (
 	"github.com/DistributedClocks/GoVector/govec"
 	"net/rpc"
-	"../clientlib"
-	"../crdtlib"
+	// "../clientlib"
+	"proj2_f4u9a_g8z9a_i4x8_s8a9/clientlib"
+	// "../crdtlib"
+	"proj2_f4u9a_g8z9a_i4x8_s8a9/crdtlib"
 	"time"
 )
 
@@ -12,8 +14,8 @@ type ServerAPI interface {
 	// -----------------------------------------------------------------------------
 
 	// KV: Key-value store API calls.
-	KVGet(key int, clientId uint64, logger *govec.GoLog) (crdtlib.GetReply, error)
-	KVPut(key int, value crdtlib.ValueType, logger *govec.GoLog) error
+	KVGet(key uint64, clientId uint64, logger *govec.GoLog) (crdtlib.GetReply, error)
+	KVPut(key uint64, value crdtlib.ValueType, logger *govec.GoLog) error
 
 	// -----------------------------------------------------------------------------
 	Register(address string, rpcAddress string, clientID uint64, displayName string, logger *govec.GoLog) (clientlib.PeerNetSettings, error)
@@ -30,47 +32,47 @@ type PeerInfo struct {
 	RPCAddress  string
 	ClientID    uint64
 	DisplayName string
-	B []byte
+	B           []byte
 }
 
 type ClientIDRequest struct {
 	ClientID uint64
-	B []byte
+	B        []byte
 }
 
 type PeerSettingsRequest struct {
 	Settings clientlib.PeerNetSettings
-	B []byte
+	B        []byte
 }
 
 type GetNodesResponse struct {
 	Nodes []PeerInfo
-	B []byte
+	B     []byte
 }
 
 type ConnectResponse struct {
 	Ack bool
-	B []byte
+	B   []byte
 }
 
 type KVGetRequest struct {
 	Arg crdtlib.GetArg
-	B []byte
+	B   []byte
 }
 
 type KVGetResponse struct {
 	Reply crdtlib.GetReply
-	B []byte
+	B     []byte
 }
 
 type KVPutRequest struct {
 	Arg crdtlib.PutArg
-	B []byte
+	B   []byte
 }
 
 type KVPutResponse struct {
 	Reply crdtlib.PutReply
-	B []byte
+	B     []byte
 }
 
 // Error definitions
@@ -100,7 +102,7 @@ func (r *RPCServerAPI) doApiCall(call string, request interface{}, response inte
 
 // KV: Key-value store API call implementations.
 
-func (r *RPCServerAPI) KVGet(key int, clientId uint64, logger *govec.GoLog) (crdtlib.GetReply, error) {
+func (r *RPCServerAPI) KVGet(key uint64, clientId uint64, logger *govec.GoLog) (crdtlib.GetReply, error) {
 
 	arg := crdtlib.GetArg{clientId, key}
 	var reply crdtlib.GetReply
@@ -116,7 +118,7 @@ func (r *RPCServerAPI) KVGet(key int, clientId uint64, logger *govec.GoLog) (crd
 	return response.Reply, nil
 }
 
-func (r *RPCServerAPI) KVPut(key int, value crdtlib.ValueType, logger *govec.GoLog) error {
+func (r *RPCServerAPI) KVPut(key uint64, value crdtlib.ValueType, logger *govec.GoLog) error {
 
 	arg := crdtlib.PutArg{key, value}
 	var reply crdtlib.PutReply
@@ -140,7 +142,7 @@ func (r *RPCServerAPI) Register(address string, rpcAddress string, clientID uint
 	var settings PeerSettingsRequest
 	var id uint64
 
-	if err :=  r.doApiCall("TankServer.Register", &request, &settings); err != nil {
+	if err := r.doApiCall("TankServer.Register", &request, &settings); err != nil {
 		logger.UnpackReceive("[Register] request rejected by server", settings.B, id)
 		return clientlib.PeerNetSettings{}, err
 	}

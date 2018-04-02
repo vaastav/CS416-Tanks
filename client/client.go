@@ -1,10 +1,13 @@
 package main
 
 import (
-	"../clientlib"
-	"../clocklib"
-	"../crdtlib"
-	"../serverlib"
+	// "../clientlib"
+	"proj2_f4u9a_g8z9a_i4x8_s8a9/clientlib"
+	// "../clocklib"
+	"proj2_f4u9a_g8z9a_i4x8_s8a9/clocklib"
+	// "../crdtlib"
+	"proj2_f4u9a_g8z9a_i4x8_s8a9/crdtlib"
+	// "../serverlib"
 	"github.com/DistributedClocks/GoVector/govec"
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/imdraw"
@@ -20,6 +23,7 @@ import (
 	_ "net/http/pprof"
 	"net/rpc"
 	"os"
+	"proj2_f4u9a_g8z9a_i4x8_s8a9/serverlib"
 	"strconv"
 	"sync"
 	"time"
@@ -41,11 +45,11 @@ var (
 	Clock           = &clocklib.ClockManager{}
 	KVMap           = struct {
 		sync.RWMutex
-		M map[int]crdtlib.ValueType
-	}{M: make(map[int]crdtlib.ValueType)}
-	KVDir  = "stats-directory"
-	Server serverlib.ServerAPI
-	Logger *govec.GoLog
+		M map[uint64]crdtlib.ValueType
+	}{M: make(map[uint64]crdtlib.ValueType)}
+	KVDir    = "stats-directory"
+	Server   serverlib.ServerAPI
+	Logger   *govec.GoLog
 	KVLogger *govec.GoLog
 )
 
@@ -87,9 +91,9 @@ func main() {
 
 	// Setup govector loggers
 	clientName := "client_" + display_name
-	statsName :=  clientName + "_stats"
-	Logger = govec.InitGoVector(clientName, clientName + "_logfile" )
-	KVLogger = govec.InitGoVector(statsName, statsName + "_logfile")
+	statsName := clientName + "_stats"
+	Logger = govec.InitGoVector(clientName, clientName+"_logfile")
+	KVLogger = govec.InitGoVector(statsName, statsName+"_logfile")
 
 	// KV: Setup the key-value store.
 	KVMap.M, err = KVStoreSetup()

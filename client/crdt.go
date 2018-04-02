@@ -4,16 +4,17 @@ import (
 	"io/ioutil"
 	"path"
 	"path/filepath"
-	"../crdtlib"
+	// "../crdtlib"
+	"proj2_f4u9a_g8z9a_i4x8_s8a9/crdtlib"
 	"strconv"
 	"strings"
 )
 
 // Sets up the key-value store by reading any existing key-value pairs stored on
 // disk, and returns a map populated by them.
-func KVStoreSetup() (map[int]crdtlib.ValueType, error) {
+func KVStoreSetup() (map[uint64]crdtlib.ValueType, error) {
 
-	M := make(map[int]crdtlib.ValueType)
+	M := make(map[uint64]crdtlib.ValueType)
 
 	files, err := filepath.Glob(path.Join(".", KVDir, "*.kv"))
 	if err != nil {
@@ -32,13 +33,13 @@ func KVStoreSetup() (map[int]crdtlib.ValueType, error) {
 		v1, _ := strconv.Atoi(dataStr[1])
 		k, _ := strconv.Atoi(fname)
 		val := crdtlib.ValueType{v0, v1}
-		M[k] = val
+		M[uint64(k)] = val
 	}
 
 	return M, nil
 }
 
-func KVGet(key int) (crdtlib.ValueType, error) {
+func KVGet(key uint64) (crdtlib.ValueType, error) {
 
 	reply, err := Server.KVGet(key, NetworkSettings.UniqueUserID, KVLogger)
 	if err != nil {
@@ -54,7 +55,7 @@ func KVGet(key int) (crdtlib.ValueType, error) {
 
 }
 
-func KVPut(key int, value crdtlib.ValueType) error {
+func KVPut(key uint64, value crdtlib.ValueType) error {
 
 	err := Server.KVPut(key, value, KVLogger)
 

@@ -42,7 +42,7 @@ type ValueType struct {
 // to get the value of a key.
 type GetArg struct {
 	ClientId uint64
-	Key      int
+	Key      uint64
 }
 
 // A GetReply represents the reply sent from the server to the client on a Get
@@ -57,7 +57,7 @@ type GetReply struct {
 // A PutArg represents an argument type passed when a client sends the server an
 // RPC to write a key-value pair.
 type PutArg struct {
-	Key   int
+	Key   uint64
 	Value ValueType
 }
 

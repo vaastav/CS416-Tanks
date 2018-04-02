@@ -2,21 +2,22 @@ package main
 
 import (
 	"io/ioutil"
-	"os"
 	"log"
 	"net"
 	"net/rpc"
+	"os"
 	"path"
-	// "proj2_f4u9a_g8z9a_i4x8_s8a9/crdtlib"
 	"strconv"
-	"../clientlib"
-	"../crdtlib"
+	// "../clientlib"
+	"proj2_f4u9a_g8z9a_i4x8_s8a9/clientlib"
+	// "../crdtlib"
+	"proj2_f4u9a_g8z9a_i4x8_s8a9/crdtlib"
 	"time"
 )
 
 type ClockController int
 
-func (c *ClockController) TimeRequest(request clientlib.GetTimeRequest, t * clientlib.GetTimeResponse) error {
+func (c *ClockController) TimeRequest(request clientlib.GetTimeRequest, t *clientlib.GetTimeResponse) error {
 	var i int
 	Logger.UnpackReceive("[TimeRequest] command received from server", request.B, &i)
 	b := Logger.PrepareSend("[TimeRequest] command executed", Clock.GetCurrentTime())
@@ -37,9 +38,9 @@ func (c *ClockController) SetOffset(request clientlib.SetOffsetRequest, response
 
 // KV: Get and Put functions.
 
-func WriteKVPair(key int, value crdtlib.ValueType) error {
-	
-	fname := path.Join(".", KVDir, strconv.FormatInt(int64(key), 10) + ".kv")
+func WriteKVPair(key uint64, value crdtlib.ValueType) error {
+
+	fname := path.Join(".", KVDir, strconv.FormatUint(key, 10)+".kv")
 
 	if _, err := os.Stat(fname); os.IsNotExist(err) {
 		f, err := os.Create(fname)
@@ -60,11 +61,11 @@ func WriteKVPair(key int, value crdtlib.ValueType) error {
 
 	return nil
 }
-	
+
 func (c *ClockController) KVClientGet(request clientlib.KVClientGetRequest, response *clientlib.KVClientGetResponse) error {
 
 	key := request.Key
-	var k int
+	var k uint64
 	KVLogger.UnpackReceive("[KVClientGet] Request received from server", request.B, &k)
 	KVMap.Lock()
 	defer KVMap.Unlock()
@@ -78,7 +79,7 @@ func (c *ClockController) KVClientGet(request clientlib.KVClientGetRequest, resp
 func (c *ClockController) KVClientPut(request clientlib.KVClientPutRequest, response *clientlib.KVClientPutResponse) error {
 
 	arg := request.Arg
-	var k int
+	var k uint64
 	var ok bool
 	KVLogger.UnpackReceive("[KVClientGet] Request received from server", request.B, &k)
 	KVMap.Lock()

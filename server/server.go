@@ -17,10 +17,14 @@ import (
 	"net"
 	"net/rpc"
 	"os"
-	"../clientlib"
-	"../clocklib"
-	"../crdtlib"
-	"../serverlib"
+	// "../clientlib"
+	"proj2_f4u9a_g8z9a_i4x8_s8a9/clientlib"
+	// "../clocklib"
+	"proj2_f4u9a_g8z9a_i4x8_s8a9/clocklib"
+	// "../crdtlib"
+	"proj2_f4u9a_g8z9a_i4x8_s8a9/crdtlib"
+	// "../serverlib"
+	"proj2_f4u9a_g8z9a_i4x8_s8a9/serverlib"
 	"sync"
 	"time"
 )
@@ -43,17 +47,6 @@ type Connection struct {
 	rpcAddress  string
 	offset      time.Duration
 }
-
-// -----------------------------------------------------------------------------
-
-// KV: Define types.
-
-// A ClientInfo represents information about a client.
-type ClientInfo struct {
-	ClientId int
-}
-
-// -----------------------------------------------------------------------------
 
 // Error definitions
 
@@ -95,10 +88,10 @@ var Clock *clocklib.ClockManager = &clocklib.ClockManager{}
 // A map to store which client IDs have a key-value pair.
 type KeyToClients struct {
 	Mutex sync.RWMutex
-	M     map[int][]uint64
+	M     map[uint64][]uint64
 }
 
-var keyToClients KeyToClients = KeyToClients{sync.RWMutex{}, make(map[int][]uint64)}
+var keyToClients KeyToClients = KeyToClients{sync.RWMutex{}, make(map[uint64][]uint64)}
 
 // The number of clients a key-value pair should be replicated on.
 var globalReplicationFactor int = 3
@@ -183,7 +176,7 @@ func (s *TankServer) KVPut(request *serverlib.KVPutRequest, response *serverlib.
 	defer connections.Unlock()
 	keyToClients.Mutex.Lock()
 	defer keyToClients.Mutex.Unlock()
-	var k int
+	var k uint64
 	StatsLogger.UnpackReceive("[KVPut] Request received from client", request.B, k)
 	arg := request.Arg
 	key := arg.Key
@@ -349,7 +342,7 @@ func (s *TankServer) syncClocks() {
 	connections.Unlock()
 }
 
-func (s *TankServer) Register (peerInfo serverlib.PeerInfo, settings *serverlib.PeerSettingsRequest) error {
+func (s *TankServer) Register(peerInfo serverlib.PeerInfo, settings *serverlib.PeerSettingsRequest) error {
 	log.Println("register", peerInfo.ClientID)
 	var incomingMessage string
 	Logger.UnpackReceive("[Register] request received from client", peerInfo.B, &incomingMessage)
@@ -376,7 +369,7 @@ func (s *TankServer) Register (peerInfo serverlib.PeerInfo, settings *serverlib.
 	return nil
 }
 
-func (s *TankServer) Connect (clientReq serverlib.ClientIDRequest, response *serverlib.ConnectResponse) error {
+func (s *TankServer) Connect(clientReq serverlib.ClientIDRequest, response *serverlib.ConnectResponse) error {
 	clientID := clientReq.ClientID
 	log.Println("connect", clientID)
 	var incomingMessage int
@@ -408,7 +401,7 @@ func (s *TankServer) Connect (clientReq serverlib.ClientIDRequest, response *ser
 	return nil
 }
 
-func (s *TankServer) GetNodes (clientReq serverlib.ClientIDRequest, addrSet *serverlib.GetNodesResponse) error {
+func (s *TankServer) GetNodes(clientReq serverlib.ClientIDRequest, addrSet *serverlib.GetNodesResponse) error {
 	clientID := clientReq.ClientID
 	log.Println("getnodes", clientID)
 	var incomingMessage int

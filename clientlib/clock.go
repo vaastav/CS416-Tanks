@@ -3,7 +3,8 @@ package clientlib
 import (
 	"github.com/DistributedClocks/GoVector/govec"
 	"net/rpc"
-	"../crdtlib"
+	// "../crdtlib"
+	"proj2_f4u9a_g8z9a_i4x8_s8a9/crdtlib"
 	"time"
 )
 
@@ -29,32 +30,32 @@ type GetTimeResponse struct {
 
 type SetOffsetRequest struct {
 	Offset time.Duration
-	B []byte
+	B      []byte
 }
 
 type SetOffsetResponse struct {
 	Ack bool
-	B []byte
+	B   []byte
 }
 
 type KVClientGetRequest struct {
-	Key int
-	B []byte
+	Key uint64
+	B   []byte
 }
 
 type KVClientGetResponse struct {
 	Value crdtlib.ValueType
-	B []byte
+	B     []byte
 }
 
 type KVClientPutRequest struct {
 	Arg crdtlib.PutArg
-	B []byte
+	B   []byte
 }
 
 type KVClientPutResponse struct {
 	Ack bool
-	B []byte
+	B   []byte
 }
 
 type DisconnectedError string
@@ -81,7 +82,7 @@ func (c *ClientClockRemote) doApiCall(call string, request interface{}, response
 
 // KV: Get and Put functions.
 
-func (c *ClientClockRemote) KVClientGet(key int, logger *govec.GoLog) (crdtlib.ValueType, error) {
+func (c *ClientClockRemote) KVClientGet(key uint64, logger *govec.GoLog) (crdtlib.ValueType, error) {
 	value := crdtlib.ValueType{0, 0}
 	var response KVClientGetResponse
 	b := logger.PrepareSend("[KVClientGet] requesting from client", key)
@@ -96,7 +97,7 @@ func (c *ClientClockRemote) KVClientGet(key int, logger *govec.GoLog) (crdtlib.V
 
 }
 
-func (c *ClientClockRemote) KVClientPut(key int, value crdtlib.ValueType, logger *govec.GoLog) error {
+func (c *ClientClockRemote) KVClientPut(key uint64, value crdtlib.ValueType, logger *govec.GoLog) error {
 
 	arg := crdtlib.PutArg{key, value}
 	var ok bool
