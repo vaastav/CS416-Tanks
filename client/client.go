@@ -38,7 +38,7 @@ var (
 	LocalAddr       *net.UDPAddr
 	RPCAddr         *net.TCPAddr
 	UpdateChannel   = make(chan clientlib.Update, 1000)
-	Clock           = &clocklib.ClockManager{0}
+	Clock           = &clocklib.ClockManager{}
 	KVMap           = struct {
 		sync.RWMutex
 		M map[int]crdtlib.ValueType

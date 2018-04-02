@@ -86,7 +86,7 @@ var Logger *govec.GoLog
 
 var StatsLogger *govec.GoLog
 
-var Clock *clocklib.ClockManager = &clocklib.ClockManager{0}
+var Clock *clocklib.ClockManager = &clocklib.ClockManager{}
 
 // -----------------------------------------------------------------------------
 
@@ -160,7 +160,7 @@ func (s *TankServer) KVGet(request *serverlib.KVGetRequest, response *serverlib.
 		log.Fatal(err)
 	}
 	clockClient := clientlib.NewClientClockRemoteAPI(client)
-	value, err := clockClient.KVClientGet(key)
+	value, err := clockClient.KVClientGet(key, StatsLogger)
 	if err != nil {
 		// TODO: Better failure handling
 		b := StatsLogger.PrepareSend("[KVGet] Request from client failed", reply)
@@ -243,7 +243,7 @@ func (s *TankServer) KVPut(request *serverlib.KVPutRequest, response *serverlib.
 			log.Fatal(err)
 		}
 		clockClient := clientlib.NewClientClockRemoteAPI(client)
-		err = clockClient.KVClientPut(key, value)
+		err = clockClient.KVClientPut(key, value, StatsLogger)
 		if err != nil {
 			// TODO: Better failure handling
 			var reply crdtlib.PutReply

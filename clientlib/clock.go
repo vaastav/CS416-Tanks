@@ -10,8 +10,8 @@ import (
 type ClientClockAPI interface {
 	TimeRequest() (time.Time, error)
 	SetOffset(offset time.Duration) error
-	KVClientGet(key int) (crdtlib.ValueType, error)
-	KVClientPut(key int, vale crdtlib.ValueType) error
+	KVClientGet(key int, logger *govec.GoLog) (crdtlib.ValueType, error)
+	KVClientPut(key int, vale crdtlib.ValueType, logger *govec.GoLog) error
 }
 
 type ClientClockRemote struct {
@@ -33,6 +33,26 @@ type SetOffsetRequest struct {
 }
 
 type SetOffsetResponse struct {
+	Ack bool
+	B []byte
+}
+
+type KVClientGetRequest struct {
+	Key int
+	B []byte
+}
+
+type KVClientGetResponse struct {
+	Value crdtlib.ValueType
+	B []byte
+}
+
+type KVClientPutRequest struct {
+	Arg crdtlib.PutArg
+	B []byte
+}
+
+type KVClientPutResponse struct {
 	Ack bool
 	B []byte
 }
@@ -61,28 +81,34 @@ func (c *ClientClockRemote) doApiCall(call string, request interface{}, response
 
 // KV: Get and Put functions.
 
-func (c *ClientClockRemote) KVClientGet(key int) (crdtlib.ValueType, error) {
-
-	request := key
+func (c *ClientClockRemote) KVClientGet(key int, logger *govec.GoLog) (crdtlib.ValueType, error) {
 	value := crdtlib.ValueType{0, 0}
-
-	if err := c.doApiCall("ClockController.KVClientGet", &request, &value); err != nil {
+	var response KVClientGetResponse
+	b := logger.PrepareSend("[KVClientGet] requesting from client", key)
+	request := KVClientGetRequest{key, b}
+	if err := c.doApiCall("ClockController.KVClientGet", &request, &response); err != nil {
+		logger.UnpackReceive("[KVClientGet] request from client failed", response.B, &value)
 		return crdtlib.ValueType{0, 0}, nil
 	}
 
-	return value, nil
+	logger.UnpackReceive("[KVClientGet] request from client succeeded", response.B, &value)
+	return response.Value, nil
 
 }
 
-func (c *ClientClockRemote) KVClientPut(key int, value crdtlib.ValueType) error {
+func (c *ClientClockRemote) KVClientPut(key int, value crdtlib.ValueType, logger *govec.GoLog) error {
 
 	arg := crdtlib.PutArg{key, value}
 	var ok bool
-
-	if err := c.doApiCall("ClockController.KVClientPut", &arg, &ok); err != nil {
+	var response KVClientPutResponse
+	b := logger.PrepareSend("[KVClientPut] requesting from client", key)
+	request := KVClientPutRequest{arg, b}
+	if err := c.doApiCall("ClockController.KVClientPut", &request, &response); err != nil {
+		logger.UnpackReceive("[KVClientPut] request from client failed", response.B, &ok)
 		return err
 	}
 
+	logger.UnpackReceive("[KVClientPut] request from client succeeded", response.B, &ok)
 	return nil
 }
 
