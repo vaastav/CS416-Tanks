@@ -31,6 +31,7 @@ type Connection struct {
 	displayName string
 	address string
 	rpcAddress string
+	client *clientlib.ClientClockRemote
 	offset time.Duration
 }
 
@@ -88,12 +89,15 @@ func (s *TankServer) syncClocks() {
 		client, err := rpc.Dial("tcp", connection.rpcAddress)
 		if err != nil {
 			// TODO : Better failure handling
-			log.Fatal(err)
+			log.Fatal("syncClocks() Failed to dial TCP address:", err)
 		}
 
 		before := Clock.GetCurrentTime()
 		
 		clockClient := clientlib.NewClientClockRemoteAPI(client)
+		connection.client = clockClient
+		connections.m[key] = connection
+
 		t, err := clockClient.TimeRequest()
 		if err != nil {
 			log.Fatal(err)
@@ -117,18 +121,18 @@ func (s *TankServer) syncClocks() {
 		// Update to prepare send
 		s := fmt.Sprintf("Telling client %d to set offset", key)
 		Logger.LogLocalEvent(s)
-		client, err := rpc.Dial("tcp", connection.rpcAddress)
-		if err != nil {
-			// TODO : Better failure handling
-			log.Fatal(err)
-		}
+		//client, err := rpc.Dial("tcp", connection.rpcAddress)
+		//if err != nil {
+		//	// TODO : Better failure handling
+		//	log.Fatal("syncClocks() Failed ", err)
+		//}
 
 		offset := offsetAverage - m[key]
 		connection.offset = offset
 		connections.m[key] = connection
 
-		clockClient := clientlib.NewClientClockRemoteAPI(client)
-		err = clockClient.SetOffset(offset)
+		//clockClient := clientlib.NewClientClockRemoteAPI(client)
+		err := connection.client.SetOffset(offset)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -219,91 +223,128 @@ func (s *TankServer) GetNodes (clientID uint64, addrSet *[]serverlib.PeerInfo) e
 
 // Notify server that node PeerID has either disconnected or reconnected.
 func (s *TankServer) NotifyConnection(connectionInfo serverlib.ConnectionInfo, ack *bool) error {
-	var status string
-	if connectionInfo.Status == clientlib.CONNECTED {
-		status = "connected"
-	} else {
-		status = "disconnected"
-	}
-	log.Printf("[NotifyConnection] Node %d reported as %s by node %d\n", connectionInfo.PeerID, status, connectionInfo.ReporterID)
-
+	log.Printf("NotifyConnection() Node %d reported as %s by node %d\n", connectionInfo.PeerID, getStatusString(connectionInfo.Status), connectionInfo.ReporterID)
 	connections.Lock()
 	defer connections.Unlock()
 	disconnectedNodes.Lock()
 	defer disconnectedNodes.Unlock()
 
+	*ack = false
 	if _, exists := connections.m[connectionInfo.PeerID]; !exists {
-		log.Printf("[NotifyConnection] Node with ID %d does not exist\n", connectionInfo.PeerID)
-		*ack = false
+		log.Printf("NotifyConnection() Node with ID %d does not exist\n", connectionInfo.PeerID)
 		return nil
 	}
 	conn := connections.m[connectionInfo.PeerID]
 
-	if connectionInfo.Status == clientlib.DISCONNECTED {
-		// Option #1: node reports that node PeerID has disconnected
-		if conn.status == clientlib.CONNECTED {
-			conn.status = clientlib.DISCONNECTED
-			connections.m[connectionInfo.PeerID] = conn
-		}
-
-		// Add reporting peer's ID to list
-		if disconnected, exists := disconnectedNodes.m[connectionInfo.PeerID]; !exists {
-			disconnectedNodes.m[connectionInfo.PeerID] = []uint64{connectionInfo.ReporterID}
-			// Notify disconnected node of their state? (our assumption is server is always reachable) TODO
-		} else {
-			disconnectedNodes.m[connectionInfo.PeerID] = append(disconnected, connectionInfo.ReporterID)
-		}
-	} else {
-		// Option #2: node reports that node PeerID has reconnected
+	if connectionInfo.Status == clientlib.CONNECTED {
+		// Option #1: node reports that node PeerID has reconnected
 		// Remove reporterID from list of 'reporters'
 		if disconnected, exists := disconnectedNodes.m[connectionInfo.PeerID]; exists {
 			disconnectedNodes.m[connectionInfo.PeerID] = removeId(disconnected, connectionInfo.ReporterID)
 		} else {
-			log.Printf("[NotifyConnection] Node with ID %d is already marked as connected\n", connectionInfo.PeerID)
-			*ack = false
 			return nil
 		}
 
 		// If no reporters remaining (i.e. they've all reconnected) mark node connected
 		if len(disconnectedNodes.m[connectionInfo.PeerID]) == 0 {
+			//
+			if err := conn.client.TestConnection(); err != nil {
+				log.Printf("NotifyConnection() Error testing connection with node %d\n", connectionInfo.PeerID)
+				return nil
+			}
+
+			// A. Update reconnected node with all current disconnections
+			if ok := updateConnectionState(connectionInfo.PeerID, conn); !ok {
+				return nil
+			}
+
+			// B. Remove node from disconnected list and reset connection status
 			delete(disconnectedNodes.m, connectionInfo.PeerID)
 			conn.status = clientlib.CONNECTED
 			connections.m[connectionInfo.PeerID] = conn
-			// Notify reconnected node of their state TODO
+			*ack = true // Indicates that server considers node reconnected
+
+			log.Printf("NotifyConnection() Notifying nodes of reconnection of node %d\n", connectionInfo.PeerID)
+			for id, conn := range connections.m {
+				if id == connectionInfo.ReporterID || id == connectionInfo.PeerID || conn.status == clientlib.DISCONNECTED {
+					continue
+				}
+				err := conn.client.NotifyConnection(connectionInfo.PeerID)
+				if err != nil {
+					log.Printf("NotifyConnection() Error notifying client %d of reconnection of node %d: %s\n", id, connectionInfo.PeerID, err)
+				}
+			}
+		}
+	} else {
+		// Option #2: node reports that node PeerID has disconnected
+		if _, exists := disconnectedNodes.m[connectionInfo.ReporterID]; exists {
+			log.Printf("NotifyConnection() Reporting node %d is disconnected!\n", connectionInfo.PeerID)
+			return nil
+		}
+
+
+		if conn.status == clientlib.CONNECTED {
+			conn.status = clientlib.DISCONNECTED
+			connections.m[connectionInfo.PeerID] = conn
+		}
+		*ack = true
+
+		// Add reporting peer's ID to list
+		if disconnected, exists := disconnectedNodes.m[connectionInfo.PeerID]; !exists {
+			disconnectedNodes.m[connectionInfo.PeerID] = []uint64{connectionInfo.ReporterID}
+		} else {
+			if !containsId(disconnected, connectionInfo.ReporterID) {
+				disconnectedNodes.m[connectionInfo.PeerID] = append(disconnected, connectionInfo.ReporterID)
+			}
 		}
 	}
 
-	*ack = true
 	return nil
 }
 
 func monitorConnections() {
 	for {
 		disconnectedNodes.Lock()
+	loop:
 		for nodeID, reporters := range disconnectedNodes.m {
-			// 1. Ensure node is in fact disconnected
-			connections.RLock()
-			if conn, _ := connections.m[nodeID]; conn.status == clientlib.CONNECTED {
-				delete(disconnectedNodes.m, nodeID)
-				connections.RUnlock()
-				break
-			}
-			connections.RUnlock()
-
-			// 2. Check for disconnected reporters; remove them from node's list
+			// 1. Check for disconnected reporters; remove them from node's list
 			for _, reporterID := range reporters {
 				if _, exists := disconnectedNodes.m[reporterID]; exists {
 					disconnectedNodes.m[nodeID] = removeId(disconnectedNodes.m[nodeID], reporterID)
 				}
 			}
 
-			// 3. If no reporters remaining, remove node from map and mark as reconnected
-			if len(reporters) == 0 {
-				delete(disconnectedNodes.m, nodeID)
+			// 2. If no reporters remaining, test connection; if successful, remove node from map and mark as reconnected
+			if len(disconnectedNodes.m[nodeID]) == 0 {
 				connections.Lock()
 				conn := connections.m[nodeID]
+				if err := conn.client.TestConnection(); err != nil {
+					log.Printf("NotifyConnection() Error testing connection with node %d\n", nodeID)
+					continue loop
+				}
+
+				// A. Update reconnected node with all current disconnections
+				if ok := updateConnectionState(nodeID, conn); !ok {
+					log.Printf("NotifyConnection() Error updating connection state of node %d\n", nodeID)
+					continue loop
+				}
+
+				// B. Remove node from disconnected list and reset connection status
+				delete(disconnectedNodes.m, nodeID)
 				conn.status = clientlib.CONNECTED
 				connections.m[nodeID] = conn
+
+				// C. Notify all nodes of reconnection
+				log.Printf("broadcastReconnection() Notifying nodes of reconnection of node %d\n", nodeID)
+				for id, peerConn := range connections.m {
+					if id == nodeID || peerConn.status == clientlib.DISCONNECTED {
+						continue
+					}
+					err := peerConn.client.NotifyConnection(nodeID)
+					if err != nil {
+						log.Printf("broadcastReconnection() Error notifying client %d of reconnection of node %d: %s\n", id, nodeID, err)
+					}
+				}
 				connections.Unlock()
 			}
 		}
@@ -311,13 +352,53 @@ func monitorConnections() {
 	}
 }
 
+// When a node comes back online, its connection state for each node might be stale
+func updateConnectionState(clientID uint64, conn Connection) bool {
+	for id := range disconnectedNodes.m {
+		if id == clientID {
+			continue
+		}
+		err := conn.client.NotifyDisconnection(id)
+		if err != nil {
+			return false
+		}
+	}
+	for id, connInfo := range connections.m {
+		if id == clientID || connInfo.status == clientlib.DISCONNECTED {
+			continue
+		}
+		err := conn.client.NotifyConnection(id)
+		if err != nil {
+			return false
+		}
+	}
+	return true
+}
+
+func getStatusString(status clientlib.Status) string {
+	if status == clientlib.CONNECTED {
+		return "reconnected"
+	} else {
+		return "disconnected"
+	}
+}
+
 func removeId(ids []uint64, id uint64) []uint64 {
-	for i, v := range ids {
-		if v == id {
+	for i, val := range ids {
+		if val == id {
 			return append(ids[:i], ids[i+1:]...)
 		}
 	}
 	return ids
+}
+
+func containsId(ids []uint64, id uint64) bool {
+	for _, val := range ids {
+		if val == id {
+			return true
+		}
+	}
+	return false
 }
 
 func main() {
@@ -330,11 +411,11 @@ func main() {
 
 	serverAddr, err := net.ResolveTCPAddr("tcp", ipAddr)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("main() Failed to resolve TCP address:", err)
 	}
 	inbound, err := net.ListenTCP("tcp", serverAddr)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("main() Failed to listen on TCP address:", err)
 	}
 
 	go monitorConnections()

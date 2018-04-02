@@ -1,4 +1,3 @@
 - Add a shooting mechanic
 - Stats collection
 - Validation of updates
-- Notify failures

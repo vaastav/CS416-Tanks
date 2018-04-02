@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 	"net/rpc"
+	"fmt"
 )
 
 type PeerRecord struct {
@@ -28,9 +29,9 @@ var (
 )
 
 const (
-	HEARTBEAT_INTERVAL_SEND = time.Second * 2
-	HEARTBEAT_INTERVAL_RECV = time.Second * 3
-	HEARTBEAT_TIMEOUT = time.Second * 5
+	HEARTBEAT_INTERVAL_SEND = time.Second * 1
+	HEARTBEAT_INTERVAL_RECV = time.Second * 2
+	HEARTBEAT_TIMEOUT = time.Second * 3
 	FAILURE_NOTIFICATION_TTL = 3 // TODO: need to decide on number
 )
 
@@ -127,7 +128,7 @@ func OutgoingWorker() {
 		peerLock.Lock()
 
 		for _, peer := range peers {
-			if update.PlayerID == peer.ClientID { // TODO: what about disconnected peers?
+			if update.PlayerID == peer.ClientID { // TODO Attempt to update disconnected clients?
 				// Skip notifying clients about their own updates
 				continue
 			}
@@ -173,7 +174,9 @@ func HeartbeatWorker(clientID uint64, peerConn *clientlib.ClientClockRemote) {
 			// Option 1: If Heartbeat() returns error, handle disconnection
 			if e != nil {
 				peerLock.Lock()
-				handleDisconnection(clientID)
+				if time.Since(peers[clientID].LastHeartbeat) > HEARTBEAT_INTERVAL_RECV {
+					handleDisconnection(clientID)
+				}
 				peerLock.Unlock()
 				break
 			}
@@ -181,11 +184,14 @@ func HeartbeatWorker(clientID uint64, peerConn *clientlib.ClientClockRemote) {
 			log.Printf("[Heartbeat] Peer %d is alive\n", clientID)
 			peerLock.Lock()
 			handleReconnection(clientID)
+			peers[clientID].LastHeartbeat = Clock.GetCurrentTime()
 			peerLock.Unlock()
-		case <-time.After(HEARTBEAT_TIMEOUT):
+		case <-time.After(HEARTBEAT_INTERVAL_RECV):
 			// Option 3: If Heartbeat() times out, handle disconnection
 			peerLock.Lock()
-			handleDisconnection(clientID)
+			if time.Since(peers[clientID].LastHeartbeat) > HEARTBEAT_INTERVAL_RECV {
+				handleDisconnection(clientID)
+			}
 			peerLock.Unlock()
 		}
 
@@ -199,7 +205,7 @@ func HeartbeatMonitorWorker(clientID uint64) {
 		time.Sleep(HEARTBEAT_INTERVAL_RECV)
 		peerLock.Lock()
 		// 1. Check time since last heartbeat
-		if time.Since(peers[clientID].LastHeartbeat) > (HEARTBEAT_INTERVAL_RECV) {
+		if time.Since(peers[clientID].LastHeartbeat) > HEARTBEAT_INTERVAL_RECV {
 			handleDisconnection(clientID)
 			peerLock.Unlock()
 			continue
@@ -217,10 +223,14 @@ func HeartbeatMonitorWorker(clientID uint64) {
 func handleReconnection(clientID uint64) {
 	if peers[clientID].ConnectionStatus == clientlib.DISCONNECTED {
 		// Notify server of reconnection
-		ack, err := server.NotifyConnection(clientlib.CONNECTED, clientID, NetworkSettings.UniqueUserID)
-		if err != nil || !ack {
+		isReconnected, err := server.NotifyConnection(clientlib.CONNECTED, clientID, NetworkSettings.UniqueUserID)
+		if err != nil {
 			log.Println("[HandleReconnection] Error notifying server of reconnected peer", clientID)
 			return
+		}
+		if isReconnected {
+			fmt.Println("NOTIFIED ITS RECONNECTED")
+			updateConnectionStatus(clientID, clientlib.CONNECTED)
 		}
 	}
 }
@@ -229,22 +239,21 @@ func handleReconnection(clientID uint64) {
 func handleDisconnection(clientID uint64) {
 	if peers[clientID].ConnectionStatus == clientlib.CONNECTED {
 		log.Printf("[HandleDisconnection] Peer %d has timed out\n", clientID)
-		// 1. Mark peer disconnected
-		updateConnectionStatus(clientID, clientlib.DISCONNECTED)
-
-		// 2. Notify server of disconnection
-		ack, err := server.NotifyConnection(clientlib.DISCONNECTED, clientID, NetworkSettings.UniqueUserID)
+		// 1. Notify server of disconnection
+		_, err := server.NotifyConnection(clientlib.DISCONNECTED, clientID, NetworkSettings.UniqueUserID)
 		if err != nil {
 			log.Println("[HandleDisconnection] Error notifying server of disconnected peer", clientID)
 			return
-		} else if !ack {
-			log.Printf("[HandleDisconnection] Peer %d already marked disconnected\n", clientID)
-			return
 		}
 
-		// 3. Fade out associated sprite TODO
+		// 2. Mark peer disconnected
+		updateConnectionStatus(clientID, clientlib.DISCONNECTED)
+
+		// 3. Fade out associated sprite
+		// TODO: update associated sprite
 
 		// 4. Notify peers of disconnection
+		log.Println("[HandleDisconnection] Notifying peers of failure")
 		for _, peer := range peers {
 			if peer.ConnectionStatus == clientlib.DISCONNECTED {
 				continue
@@ -260,8 +269,12 @@ func handleDisconnection(clientID uint64) {
 // NOTE: must acquire lock before calling
 func updateConnectionStatus(clientID uint64, status clientlib.Status) {
 	if _, ok := peers[clientID]; ok {
+		if status == clientlib.CONNECTED {
+			peers[clientID].LastHeartbeat = Clock.GetCurrentTime()
+		}
 		peers[clientID].ConnectionStatus = status
 	}
+	// TODO: should likely trigger adding/removing sprite here
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////
@@ -277,12 +290,13 @@ func (*ClientListener) NotifyFailure(clientID uint64, ttl int) error {
 	log.Printf("[NotifyFailure] Received notification of failed peer %d, with TTL %d\n", clientID, ttl)
 	peerLock.Lock()
 
-	// Mark peer disconnected TODO: use updateConnectionStatus()
+	// Mark peer disconnected
 	if _, exists := peers[clientID]; exists {
 		if peers[clientID].ConnectionStatus == clientlib.CONNECTED {
-			log.Printf("[NotifyFailure ~ STRANGE STATE] Received notification of failed peer %d, but peer is marked as connected\n", clientID)
+			log.Printf("[NotifyFailure] NOTE: received notification of failed peer %d, but peer is marked as connected\n", clientID)
+			peers[clientID].ConnectionStatus = clientlib.DISCONNECTED
+			// TODO: update associated sprite
 		}
-		peers[clientID].ConnectionStatus = clientlib.DISCONNECTED
 	}
 
 	// Flood failure message to other peers
@@ -331,7 +345,7 @@ func (*ClientListener) Register(clientID uint64, address string, tcpAddress stri
 		ClientID: clientID,
 		Api: clientlib.NewClientAPIRemote(conn),
 		ConnectionStatus: clientlib.CONNECTED,
-		// No need to set LastHeartbeat; will be sending heartbeats to this peer, not monitoring them
+		LastHeartbeat: Clock.GetCurrentTime(),
 	}
 	peerLock.Unlock()
 
