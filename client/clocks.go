@@ -37,17 +37,8 @@ func (c *ClockController) SetOffset(request clientlib.SetOffsetRequest, response
 
 // KV: Get and Put functions.
 
-func (c *ClockController) KVClientGet(key int, value *crdtlib.ValueType) error {
-
-	KVMap.Lock()
-	defer KVMap.Unlock()
-	*value = KVMap.M[key]
-
-	return nil
-}
-
 func WriteKVPair(key int, value crdtlib.ValueType) error {
-
+	
 	fname := path.Join(".", KVDir, strconv.FormatInt(int64(key), 10) + ".kv")
 
 	if _, err := os.Stat(fname); os.IsNotExist(err) {
@@ -69,9 +60,27 @@ func WriteKVPair(key int, value crdtlib.ValueType) error {
 
 	return nil
 }
+	
+func (c *ClockController) KVClientGet(request clientlib.KVClientGetRequest, response *clientlib.KVClientGetResponse) error {
 
-func (c *ClockController) KVClientPut(arg *crdtlib.PutArg, ok *bool) error {
+	key := request.Key
+	var k int
+	KVLogger.UnpackReceive("[KVClientGet] Request received from server", request.B, &k)
+	KVMap.Lock()
+	defer KVMap.Unlock()
+	value := KVMap.M[key]
+	b := KVLogger.PrepareSend("[KVClientGet] Request executed", value)
+	*response = clientlib.KVClientGetResponse{value, b}
 
+	return nil
+}
+
+func (c *ClockController) KVClientPut(request clientlib.KVClientPutRequest, response *clientlib.KVClientPutResponse) error {
+
+	arg := request.Arg
+	var k int
+	var ok bool
+	KVLogger.UnpackReceive("[KVClientGet] Request received from server", request.B, &k)
 	KVMap.Lock()
 	defer KVMap.Unlock()
 	key := arg.Key
@@ -79,9 +88,14 @@ func (c *ClockController) KVClientPut(arg *crdtlib.PutArg, ok *bool) error {
 	KVMap.M[key] = value
 	err := WriteKVPair(key, value)
 	if err != nil {
+		ok = false
+		b := KVLogger.PrepareSend("[KVClientPut] Request failed", ok)
+		*response = clientlib.KVClientPutResponse{ok, b}
 		return err
 	}
-	*ok = true
+	b := KVLogger.PrepareSend("KVClientPut] Request succeeded", ok)
+	*response = clientlib.KVClientPutResponse{ok, b}
+	ok = true
 
 	return nil
 }

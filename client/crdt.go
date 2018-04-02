@@ -40,7 +40,7 @@ func KVStoreSetup() (map[int]crdtlib.ValueType, error) {
 
 func KVGet(key int) (crdtlib.ValueType, error) {
 
-	reply, err := Server.KVGet(key, NetworkSettings.UniqueUserID)
+	reply, err := Server.KVGet(key, NetworkSettings.UniqueUserID, KVLogger)
 	if err != nil {
 		return reply.Value, err
 	}
@@ -56,7 +56,7 @@ func KVGet(key int) (crdtlib.ValueType, error) {
 
 func KVPut(key int, value crdtlib.ValueType) error {
 
-	err := Server.KVPut(key, value)
+	err := Server.KVPut(key, value, KVLogger)
 
 	return err
 

@@ -84,7 +84,9 @@ var connections = struct {
 
 var Logger *govec.GoLog
 
-var Clock *clocklib.ClockManager = &clocklib.ClockManager{0}
+var StatsLogger *govec.GoLog
+
+var Clock *clocklib.ClockManager = &clocklib.ClockManager{}
 
 // -----------------------------------------------------------------------------
 
@@ -105,7 +107,7 @@ var globalReplicationFactor int = 3
 
 // KV: Server side functions for a distributed key-value store.
 
-func (s *TankServer) KVGet(arg *crdtlib.GetArg, reply *crdtlib.GetReply) error {
+func (s *TankServer) KVGet(request *serverlib.KVGetRequest, response *serverlib.KVGetResponse) error {
 
 	// Get the latest client that stores this key-value pair and is online.
 	keyToClients.Mutex.Lock()
@@ -113,6 +115,10 @@ func (s *TankServer) KVGet(arg *crdtlib.GetArg, reply *crdtlib.GetReply) error {
 	connections.Lock()
 	defer connections.Unlock()
 	var latestOnline uint64
+	var clientID uint64
+	StatsLogger.UnpackReceive("[KVGet] Request received from client", request.B, &clientID)
+	arg := request.Arg
+	var reply crdtlib.GetReply
 	found := false
 	key := arg.Key
 	for _, clientId_ := range keyToClients.M[key] {
@@ -128,6 +134,8 @@ func (s *TankServer) KVGet(arg *crdtlib.GetArg, reply *crdtlib.GetReply) error {
 		reply.Ok = false
 		reply.HasAlready = false
 		reply.Unavailable = true
+		b := StatsLogger.PrepareSend("[KVGet] Request from client failed", reply)
+		*response = serverlib.KVGetResponse{reply, b}
 		return KeyUnavailableError(key)
 	}
 
@@ -136,6 +144,8 @@ func (s *TankServer) KVGet(arg *crdtlib.GetArg, reply *crdtlib.GetReply) error {
 	if latestOnline == arg.ClientId {
 		reply.Ok = true
 		reply.HasAlready = true
+		b := StatsLogger.PrepareSend("[KVGet] Request from client succeeded", reply)
+		*response = serverlib.KVGetResponse{reply, b}
 		return nil
 	}
 
@@ -145,21 +155,27 @@ func (s *TankServer) KVGet(arg *crdtlib.GetArg, reply *crdtlib.GetReply) error {
 	client, err := rpc.Dial("tcp", connection.rpcAddress)
 	if err != nil {
 		// TODO: Better failure handling
+		b := StatsLogger.PrepareSend("[KVGet] Request from client failed", reply)
+		*response = serverlib.KVGetResponse{reply, b}
 		log.Fatal(err)
 	}
 	clockClient := clientlib.NewClientClockRemoteAPI(client)
-	value, err := clockClient.KVClientGet(key)
+	value, err := clockClient.KVClientGet(key, StatsLogger)
 	if err != nil {
 		// TODO: Better failure handling
+		b := StatsLogger.PrepareSend("[KVGet] Request from client failed", reply)
+		*response = serverlib.KVGetResponse{reply, b}
 		log.Fatal(err)
 	}
 	reply.Ok = true
 	reply.Value = value
+	b := StatsLogger.PrepareSend("[KVGet] Request from client succeeded", reply)
+	*response = serverlib.KVGetResponse{reply, b}
 
 	return nil
 }
 
-func (s *TankServer) KVPut(arg *crdtlib.PutArg, reply *crdtlib.PutReply) error {
+func (s *TankServer) KVPut(request *serverlib.KVPutRequest, response *serverlib.KVPutResponse) error {
 
 	// If this key-value pair does not exist in any client, add it. Otherwise,
 	// update it.
@@ -167,6 +183,9 @@ func (s *TankServer) KVPut(arg *crdtlib.PutArg, reply *crdtlib.PutReply) error {
 	defer connections.Unlock()
 	keyToClients.Mutex.Lock()
 	defer keyToClients.Mutex.Unlock()
+	var k int
+	StatsLogger.UnpackReceive("[KVPut] Request received from client", request.B, k)
+	arg := request.Arg
 	key := arg.Key
 	value := arg.Value
 	clientsTmp := keyToClients.M[key]
@@ -217,12 +236,20 @@ func (s *TankServer) KVPut(arg *crdtlib.PutArg, reply *crdtlib.PutReply) error {
 		client, err := rpc.Dial("tcp", connection.rpcAddress)
 		if err != nil {
 			// TODO: Better failure handling
+			var reply crdtlib.PutReply
+			reply.Ok = false
+			b := StatsLogger.PrepareSend("[KVPut] request from client failed", true)
+			*response = serverlib.KVPutResponse{reply, b}
 			log.Fatal(err)
 		}
 		clockClient := clientlib.NewClientClockRemoteAPI(client)
-		err = clockClient.KVClientPut(key, value)
+		err = clockClient.KVClientPut(key, value, StatsLogger)
 		if err != nil {
 			// TODO: Better failure handling
+			var reply crdtlib.PutReply
+			reply.Ok = false
+			b := StatsLogger.PrepareSend("[KVPut] request from client failed", true)
+			*response = serverlib.KVPutResponse{reply, b}
 			log.Fatal(err)
 		}
 		// If this client did not already have this pair, update keysToClients to
@@ -239,8 +266,10 @@ func (s *TankServer) KVPut(arg *crdtlib.PutArg, reply *crdtlib.PutReply) error {
 		}
 	}
 
+	var reply crdtlib.PutReply
 	reply.Ok = true
-
+	b := StatsLogger.PrepareSend("[KVPut] request from client succeeded", true)
+	*response = serverlib.KVPutResponse{reply, b}
 	return nil
 }
 
@@ -432,6 +461,7 @@ func main() {
 	}
 
 	Logger = govec.InitGoVector("server", "serverlogfile")
+	StatsLogger = govec.InitGoVector("server", "serverstatslogfile")
 	server := new(TankServer)
 	rpc.Register(server)
 	fmt.Println("Listening now")
