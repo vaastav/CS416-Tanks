@@ -1,6 +1,9 @@
 package clientlib
 
-import "github.com/faiface/pixel"
+import (
+	"github.com/faiface/pixel"
+	"time"
+)
 
 const (
 	POSITION UpdateKind = iota
@@ -14,6 +17,7 @@ type UpdateKind int
 
 type Update struct {
 	Kind UpdateKind
+	Time time.Time
 	PlayerID uint64
 	Pos pixel.Vec
 	Angle float64

@@ -53,6 +53,8 @@ var (
 	playerPic   pixel.Picture
 	localPlayer *Player
 	players     = make(map[uint64]*Player)
+	// Keep a separate list of player IDs around because go maps don't have a stable iteration order
+	playerIds   []uint64
 )
 
 func main() {
@@ -171,6 +173,7 @@ func doAcceptUpdates() {
 			if players[update.PlayerID] == nil {
 				// New player, create it
 				players[update.PlayerID] = NewPlayer(update.PlayerID)
+				playerIds = append(playerIds, update.PlayerID)
 			}
 
 			// Update the player with what we received
@@ -203,6 +206,9 @@ func doLocalInput(dt float64) {
 
 	update = update.UpdateAngle(win.MousePosition())
 
+	// Timestamp
+	update.Time = Clock.GetCurrentTime()
+
 	// Update our local player immediately
 	localPlayer.Accept(update)
 
@@ -229,8 +235,8 @@ func doDraw() {
 	localPlayer.Draw(win)
 
 	// draw all the other players
-	for _, p := range players {
-		p.Draw(win)
+	for _, id := range playerIds {
+		players[id].Draw(win)
 	}
 
 	win.Update()
