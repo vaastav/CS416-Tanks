@@ -252,9 +252,11 @@ func (s *TankServer) NotifyConnection(connectionInfo serverlib.ConnectionInfo, a
 				log.Printf("NotifyConnection() Error testing connection with node %d\n", connectionInfo.PeerID)
 				return nil
 			}
+			log.Println("Test connection!")
 
 			// A. Update reconnected node with all current disconnections
 			if ok := updateConnectionState(connectionInfo.PeerID, conn); !ok {
+				log.Printf("NotifyConnection() Error updating connection state of node %d\n", connectionInfo.PeerID)
 				return nil
 			}
 
@@ -281,7 +283,6 @@ func (s *TankServer) NotifyConnection(connectionInfo serverlib.ConnectionInfo, a
 			log.Printf("NotifyConnection() Reporting node %d is disconnected!\n", connectionInfo.PeerID)
 			return nil
 		}
-
 
 		if conn.status == clientlib.CONNECTED {
 			conn.status = clientlib.DISCONNECTED
@@ -322,6 +323,7 @@ func monitorConnections() {
 					log.Printf("NotifyConnection() Error testing connection with node %d\n", nodeID)
 					continue loop
 				}
+				log.Println("Test connection!")
 
 				// A. Update reconnected node with all current disconnections
 				if ok := updateConnectionState(nodeID, conn); !ok {
@@ -352,26 +354,45 @@ func monitorConnections() {
 	}
 }
 
+// TODO: need to fix this so all info gets there
 // When a node comes back online, its connection state for each node might be stale
 func updateConnectionState(clientID uint64, conn Connection) bool {
-	for id := range disconnectedNodes.m {
+	//for id := range disconnectedNodes.m {
+	//	if id == clientID {
+	//		continue
+	//	}
+	//	err := conn.client.NotifyDisconnection(id)
+	//	if err != nil {
+	//		log.Printf("updateConnectionState() Error updating connection state of node %d: %s\n", clientID, err)
+	//		return false
+	//	}
+	//}
+	log.Printf("Updating connection state of node %d\n", clientID)
+	connectionState := make(map[uint64]clientlib.Status)
+	for id, connInfo := range connections.m {
 		if id == clientID {
 			continue
 		}
-		err := conn.client.NotifyDisconnection(id)
-		if err != nil {
-			return false
-		}
+		connectionState[id] = connInfo.status
+		//
+		//var err error
+		//if connInfo.status == clientlib.CONNECTED {
+		//	log.Printf("Notify connection state of node %d\n", id)
+		//	err = conn.client.NotifyConnection(id)
+		//} else {
+		//	log.Printf("Notify disconnection state of node %d\n", id)
+		//	err = conn.client.NotifyDisconnection(id)
+		//}
+		//if err != nil {
+		//	log.Printf("updateConnectionState() Error updating connection state of node %d: %s\n", clientID, err)
+		//	return false
+		//}
 	}
-	for id, connInfo := range connections.m {
-		if id == clientID || connInfo.status == clientlib.DISCONNECTED {
-			continue
-		}
-		err := conn.client.NotifyConnection(id)
-		if err != nil {
-			return false
-		}
+	if err := conn.client.UpdateConnectionState(connectionState); err != nil {
+		log.Printf("updateConnectionState() Error updating connection state of node %d: %s\n", clientID, err)
+		return false
 	}
+
 	return true
 }
 
@@ -425,5 +446,10 @@ func main() {
 	rpc.Register(server)
 	log.Println("Listening now")
 	Logger.LogLocalEvent("Listening Now")
-	rpc.Accept(inbound)
+	//rpc.Accept(inbound)
+
+	for {
+		conn, _ := inbound.Accept()
+		go rpc.ServeConn(conn)
+	}
 }

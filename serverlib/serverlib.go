@@ -88,7 +88,7 @@ func (r *RPCServerAPI) NotifyConnection(connectionStatus clientlib.Status, peerI
 	request := ConnectionInfo{Status:connectionStatus, PeerID:peerID, ReporterID: reporterID}
 	var ack bool
 
-	if err := r.doApiCall("TankServer.NotifyConnection", &request, &ack); err != nil {
+	if err := r.api.Call("TankServer.NotifyConnection", &request, &ack); err != nil {
 		return false, err
 	}
 

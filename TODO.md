@@ -1,3 +1,4 @@
 - Add a shooting mechanic
 - Stats collection
 - Validation of updates
+- Add/remove sprites depending on connectivity
