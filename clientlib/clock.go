@@ -20,7 +20,6 @@ type ClientClockAPI interface {
 	Heartbeat(clientID uint64) error
 	NotifyConnection(clientID uint64) error
 	UpdateConnectionState(connectionInfo map[uint64]Status) error
-	//NotifyDisconnection(clientID uint64) error
 	TestConnection() error
 }
 
@@ -33,6 +32,11 @@ type Status int
 const (
 	DISCONNECTED Status = iota
 	CONNECTED
+)
+
+const (
+	TIMEOUT              = 20 * time.Second
+	CONNECTIVITY_TIMEOUT = 3 * time.Second
 )
 
 type GetTimeRequest struct {
@@ -84,12 +88,12 @@ func NewClientClockRemoteAPI(api *rpc.Client) *ClientClockRemote {
 	return &ClientClockRemote{api}
 }
 
-func (c *ClientClockRemote) doApiCall(call string, request interface{}, response interface{}) error {
+func (c *ClientClockRemote) doApiCall(call string, request interface{}, response interface{}, timeout time.Duration) error {
 	channel := c.api.Go(call, request, response, nil)
 	select {
 	case channel := <-channel.Done:
 		return channel.Error
-	case <-time.After(20 * time.Second):
+	case <-time.After(timeout):
 		return DisconnectedError("")
 	}
 }
@@ -103,7 +107,7 @@ func (c *ClientClockRemote) KVClientGet(key uint64, logger *govec.GoLog) (crdtli
 	var response KVClientGetResponse
 	b := logger.PrepareSend("[KVClientGet] requesting from client", key)
 	request := KVClientGetRequest{key, b}
-	if err := c.doApiCall("ClockController.KVClientGet", &request, &response); err != nil {
+	if err := c.doApiCall("ClockController.KVClientGet", &request, &response, TIMEOUT); err != nil {
 		logger.UnpackReceive("[KVClientGet] request from client failed", response.B, &value)
 		return crdtlib.ValueType{0, 0}, nil
 	}
@@ -114,13 +118,12 @@ func (c *ClientClockRemote) KVClientGet(key uint64, logger *govec.GoLog) (crdtli
 }
 
 func (c *ClientClockRemote) KVClientPut(key uint64, value crdtlib.ValueType, logger *govec.GoLog) error {
-
 	arg := crdtlib.PutArg{key, value}
 	var ok bool
 	var response KVClientPutResponse
 	b := logger.PrepareSend("[KVClientPut] requesting from client", key)
 	request := KVClientPutRequest{arg, b}
-	if err := c.doApiCall("ClockController.KVClientPut", &request, &response); err != nil {
+	if err := c.doApiCall("ClockController.KVClientPut", &request, &response, TIMEOUT); err != nil {
 		logger.UnpackReceive("[KVClientPut] request from client failed", response.B, &ok)
 		return err
 	}
@@ -136,7 +139,7 @@ func (c *ClientClockRemote) TimeRequest(logger *govec.GoLog) (time.Time, error) 
 	var response GetTimeResponse
 	b := logger.PrepareSend("[TimeRequest] sending command to client", 0)
 	request := GetTimeRequest{b}
-	if err := c.doApiCall("ClockController.TimeRequest", &request, &response); err != nil {
+	if err := c.doApiCall("ClockController.TimeRequest", &request, &response, TIMEOUT); err != nil {
 		logger.UnpackReceive("[TimeRequest] command failed", response.B, &t)
 		return time.Time{}, err
 	}
@@ -150,7 +153,7 @@ func (c *ClientClockRemote) SetOffset(offset time.Duration, logger *govec.GoLog)
 	var response SetOffsetResponse
 	b := logger.PrepareSend("[SetOffset] sending command to client", offset)
 	request := SetOffsetRequest{offset, b}
-	if err := c.doApiCall("ClockController.SetOffset", &request, &response); err != nil {
+	if err := c.doApiCall("ClockController.SetOffset", &request, &response, TIMEOUT); err != nil {
 		logger.UnpackReceive("[SetOffset] command failed", response.B, &ack)
 		return err
 	}
@@ -163,7 +166,7 @@ func (c *ClientClockRemote) Heartbeat(clientID uint64) error {
 	request := clientID
 	var ack bool
 
-	if err := c.api.Call("ClockController.Heartbeat", &request, &ack); err != nil {
+	if err := c.doApiCall("ClockController.Heartbeat", &request, &ack, CONNECTIVITY_TIMEOUT); err != nil {
 		return err
 	}
 
@@ -174,7 +177,7 @@ func (c *ClientClockRemote) NotifyConnection(clientID uint64) error {
 	request := clientID
 	var ack bool
 
-	if err := c.api.Call("ClockController.NotifyConnection", &request, &ack); err != nil {
+	if err := c.doApiCall("ClockController.NotifyConnection", &request, &ack, CONNECTIVITY_TIMEOUT); err != nil {
 		return err
 	}
 
@@ -185,7 +188,7 @@ func (c *ClientClockRemote) UpdateConnectionState(connectionInfo map[uint64]Stat
 	request := connectionInfo
 	var ack bool
 
-	if err := c.api.Call("ClockController.UpdateConnectionState", &request, &ack); err != nil {
+	if err := c.doApiCall("ClockController.UpdateConnectionState", &request, &ack, CONNECTIVITY_TIMEOUT); err != nil {
 		return err
 	}
 
@@ -196,7 +199,7 @@ func (c *ClientClockRemote) TestConnection() error {
 	request := 0
 	var ack bool
 
-	if err := c.api.Call("ClockController.TestConnection", &request, &ack); err != nil {
+	if err := c.doApiCall("ClockController.TestConnection", &request, &ack, CONNECTIVITY_TIMEOUT); err != nil {
 		return err
 	}
 

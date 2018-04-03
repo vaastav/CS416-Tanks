@@ -8,11 +8,13 @@ import (
 	"net/rpc"
 	"sync"
 	"time"
+	"strconv"
 )
 
 type PeerRecord struct {
 	ClientID         uint64
 	Api              *clientlib.ClientAPIRemote
+	Rpc 			 *clientlib.ClientClockRemote
 	ConnectionStatus clientlib.Status
 	LastHeartbeat    time.Time
 }
@@ -81,7 +83,7 @@ func getMorePeers() {
 			continue
 		}
 
-		log.Println("Adding peer", p.ClientID, "at address", p.Address)
+		log.Println("Adding peer", p.ClientID, "at address", p.Address, p.RPCAddress)
 
 		peer, err := newPeer(p.ClientID, p.Address)
 		if err != nil {
@@ -90,6 +92,7 @@ func getMorePeers() {
 		}
 
 		peers[peer.ClientID] = peer
+		go HeartbeatMonitorWorker(peer.ClientID)
 	}
 }
 
@@ -104,17 +107,24 @@ func newPeer(id uint64, addr string) (*PeerRecord, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	api := clientlib.NewClientAPIRemote(conn)
+
+	tcpAddr := udpAddr.IP.String() + ":" + strconv.Itoa(udpAddr.Port+5)
+	client, err := rpc.Dial("tcp", tcpAddr)
+	if err != nil {
+		return nil, err
+	}
+	clockClient := clientlib.NewClientClockRemoteAPI(client)
+
 	err = api.Register(NetworkSettings.UniqueUserID, LocalAddr.String(), RPCAddr.String())
 	if err != nil {
 		return nil, err
 	}
-	go HeartbeatMonitorWorker(id)
 
 	return &PeerRecord{
 		ClientID:         id,
 		Api:              api,
+		Rpc:              clockClient,
 		ConnectionStatus: clientlib.CONNECTED,
 		LastHeartbeat:    Clock.GetCurrentTime(),
 	}, nil
@@ -173,8 +183,16 @@ func HeartbeatWorker(clientID uint64, peerConn *clientlib.ClientClockRemote) {
 			// Option 1: If Heartbeat() returns error, handle disconnection
 			if e != nil {
 				peerLock.Lock()
-				if time.Since(peers[clientID].LastHeartbeat) > HEARTBEAT_TIMEOUT {
-					handleDisconnection(clientID)
+				if time.Since(peers[clientID].LastHeartbeat) > HEARTBEAT_INTERVAL_SEND {
+
+					if err := peers[clientID].Rpc.TestConnection(); err != nil {
+						log.Println("TESTED CONNECTION AND IT FAILED")
+						handleDisconnection(clientID)
+					} else {
+						log.Println("TESTED CONNECTION AND IT WAS ALL GOOD")
+						peers[clientID].LastHeartbeat = Clock.GetCurrentTime()
+					}
+
 				}
 				peerLock.Unlock()
 				break
@@ -185,11 +203,19 @@ func HeartbeatWorker(clientID uint64, peerConn *clientlib.ClientClockRemote) {
 			handleReconnection(clientID)
 			peers[clientID].LastHeartbeat = Clock.GetCurrentTime()
 			peerLock.Unlock()
-		case <-time.After(HEARTBEAT_TIMEOUT):
+		case <-time.After(HEARTBEAT_INTERVAL_SEND):
 			// Option 3: If Heartbeat() times out, handle disconnection
 			peerLock.Lock()
-			if time.Since(peers[clientID].LastHeartbeat) > HEARTBEAT_TIMEOUT {
-				handleDisconnection(clientID)
+			if time.Since(peers[clientID].LastHeartbeat) > HEARTBEAT_INTERVAL_SEND {
+
+				if err := peers[clientID].Rpc.TestConnection(); err != nil {
+					log.Println("TESTED CONNECTION AND IT FAILED")
+					handleDisconnection(clientID)
+				} else {
+					log.Println("TESTED CONNECTION AND IT WAS ALL GOOD")
+					peers[clientID].LastHeartbeat = Clock.GetCurrentTime()
+				}
+
 			}
 			peerLock.Unlock()
 		}
@@ -205,7 +231,15 @@ func HeartbeatMonitorWorker(clientID uint64) {
 		peerLock.Lock()
 		// 1. Check time since last heartbeat
 		if time.Since(peers[clientID].LastHeartbeat) > HEARTBEAT_INTERVAL_RECV {
-			handleDisconnection(clientID)
+
+			if err := peers[clientID].Rpc.TestConnection(); err != nil {
+				log.Println("TESTED CONNECTION AND IT FAILED")
+				handleDisconnection(clientID)
+			} else {
+				log.Println("TESTED CONNECTION AND IT WAS ALL GOOD")
+				peers[clientID].LastHeartbeat = Clock.GetCurrentTime()
+			}
+
 			peerLock.Unlock()
 			continue
 		}
@@ -338,17 +372,19 @@ func (*ClientListener) Register(clientID uint64, address string, tcpAddress stri
 		return err
 	}
 	clockClient := clientlib.NewClientClockRemoteAPI(client)
-	go HeartbeatWorker(clientID, clockClient)
 
 	// Write down this new peer
 	peerLock.Lock()
 	peers[clientID] = &PeerRecord{
 		ClientID:         clientID,
 		Api:              clientlib.NewClientAPIRemote(conn),
+		Rpc:			  clockClient,
 		ConnectionStatus: clientlib.CONNECTED,
 		LastHeartbeat:    Clock.GetCurrentTime(),
 	}
 	peerLock.Unlock()
+
+	go HeartbeatWorker(clientID, clockClient)
 
 	return nil
 }
