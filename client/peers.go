@@ -1,9 +1,9 @@
 package main
 
 import (
-	"../clientlib"
-	"net"
 	"log"
+	"net"
+	"../clientlib"
 	"sync"
 	"time"
 	"net/rpc"
@@ -25,7 +25,7 @@ var (
 
 var (
 	peerLock = sync.Mutex{}
-	peers = make(map[uint64]*PeerRecord)
+	peers    = make(map[uint64]*PeerRecord)
 )
 
 const (
@@ -64,10 +64,9 @@ func countPeers() int {
 }
 
 func getMorePeers() {
-	newPeers, err := server.GetNodes(NetworkSettings.UniqueUserID)
+	newPeers, err := Server.GetNodes(NetworkSettings.UniqueUserID, Logger)
 	if err != nil {
 		log.Fatal("Error retrieving more peer addresses from server:", err)
-		return
 	}
 
 	for _, p := range newPeers {
@@ -123,7 +122,7 @@ func newPeer(id uint64, addr string) (*PeerRecord, error) {
 
 func OutgoingWorker() {
 	for {
-		update := <- OutgoingUpdates
+		update := <-OutgoingUpdates
 
 		peerLock.Lock()
 

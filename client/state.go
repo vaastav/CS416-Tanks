@@ -1,9 +1,10 @@
 package main
 
 import (
-	"../clientlib"
 	"github.com/faiface/pixel"
 	"log"
+	"../clientlib"
+	"time"
 )
 
 var (
@@ -15,12 +16,15 @@ var (
 )
 
 type PlayerRecord struct {
-	ID uint64
-	Pos pixel.Vec
+	ID    uint64
+	Time time.Time
+	Pos   pixel.Vec
 	Angle float64
 }
 
 func (r *PlayerRecord) Accept(update clientlib.Update) {
+	r.Time = update.Time
+
 	switch update.Kind {
 	case clientlib.POSITION:
 		r.Pos = update.Pos
@@ -31,7 +35,7 @@ func (r *PlayerRecord) Accept(update clientlib.Update) {
 func RecordWorker() {
 	for {
 		// Get the next incoming update
-		update := <- RecordUpdates
+		update := <-RecordUpdates
 
 		// Add this player to our records if we haven't heard of them before
 		if records[update.PlayerID] == nil {
@@ -39,6 +43,11 @@ func RecordWorker() {
 			records[update.PlayerID] = &PlayerRecord{
 				ID: update.PlayerID,
 			}
+		}
+
+		if !update.Time.After(records[update.PlayerID].Time) {
+			// Ignore updates if we have newer information
+			continue
 		}
 
 		// Accept the update

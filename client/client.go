@@ -1,49 +1,60 @@
 package main
 
 import (
-	"github.com/faiface/pixel/pixelgl"
-	"github.com/faiface/pixel"
-	"github.com/faiface/pixel/imdraw"
-	"log"
-	"golang.org/x/image/colornames"
-	"image"
-	"os"
-	"math/rand"
-	_ "image/png"
-	"time"
-	"math"
 	"../clientlib"
 	"../clocklib"
+	"../crdtlib"
 	"../serverlib"
-	"net/rpc"
+	"github.com/DistributedClocks/GoVector/govec"
+	"github.com/faiface/pixel"
+	"github.com/faiface/pixel/imdraw"
+	"github.com/faiface/pixel/pixelgl"
+	"golang.org/x/image/colornames"
+	"image"
+	_ "image/png"
+	"log"
+	"math"
+	"math/rand"
 	"net"
-
-	_ "net/http/pprof"
 	"net/http"
+	_ "net/http/pprof"
+	"net/rpc"
+	"os"
 	"strconv"
+	"sync"
+	"time"
 )
 
 var (
 	windowCfg = pixelgl.WindowConfig{
-		Title: "Wednesday",
+		Title:  "Wednesday",
 		Bounds: pixel.R(0, 0, 1024, 768),
-		VSync: true,
+		VSync:  true,
 	}
 )
 
 var (
 	NetworkSettings clientlib.PeerNetSettings
-	LocalAddr *net.UDPAddr
-	RPCAddr *net.TCPAddr
-	UpdateChannel = make(chan clientlib.Update, 1000)
-	Clock *clocklib.ClockManager = &clocklib.ClockManager{0}
+	LocalAddr       *net.UDPAddr
+	RPCAddr         *net.TCPAddr
+	UpdateChannel   = make(chan clientlib.Update, 1000)
+	Clock           = &clocklib.ClockManager{}
+	KVMap           = struct {
+		sync.RWMutex
+		M map[uint64]crdtlib.ValueType
+	}{M: make(map[uint64]crdtlib.ValueType)}
+	KVDir    = "stats-directory"
+	Server   serverlib.ServerAPI
+	Logger   *govec.GoLog
+	KVLogger *govec.GoLog
 )
 
 var (
-	playerPic pixel.Picture
-	localPlayer   *Player
-	server serverlib.ServerAPI
-	players = make(map[uint64]*Player)
+	playerPic   pixel.Picture
+	localPlayer *Player
+	players     = make(map[uint64]*Player)
+	// Keep a separate list of player IDs around because go maps don't have a stable iteration order
+	playerIds   []uint64
 )
 
 func main() {
@@ -52,6 +63,7 @@ func main() {
 	// Connect to the server
 	serverAddr := os.Args[1]
 	localAddrString := os.Args[2]
+	display_name := os.Args[3]
 
 	var err error
 	LocalAddr, err = net.ResolveUDPAddr("udp", localAddrString)
@@ -60,10 +72,10 @@ func main() {
 	}
 
 	go func() {
-		log.Println(http.ListenAndServe("localhost:" + strconv.Itoa(LocalAddr.Port + 20), nil))
+		log.Println(http.ListenAndServe("localhost:"+strconv.Itoa(LocalAddr.Port+20), nil))
 	}()
 
-	address := LocalAddr.IP.String() + ":" + strconv.Itoa(LocalAddr.Port + 5)
+	address := LocalAddr.IP.String() + ":" + strconv.Itoa(LocalAddr.Port+5)
 	RPCAddr, err = net.ResolveTCPAddr("tcp", address)
 	if err != nil {
 		log.Fatal(err)
@@ -75,13 +87,26 @@ func main() {
 		log.Fatal(err)
 	}
 
-	server = serverlib.NewRPCServerAPI(client)
-	NetworkSettings, err = server.Register(localAddrString, address, rand.Uint64(), "Wednesday")
+	// Setup govector loggers
+	clientName := "client_" + display_name
+	statsName := clientName + "_stats"
+	Logger = govec.InitGoVector(clientName, clientName+"_logfile")
+	KVLogger = govec.InitGoVector(statsName, statsName+"_logfile")
+
+	// KV: Setup the key-value store.
+	KVMap.M, err = KVStoreSetup()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	ack, err := server.Connect(NetworkSettings.UniqueUserID)
+	Server = serverlib.NewRPCServerAPI(client)
+	// TODO : Only register if a client ID is not already present
+	NetworkSettings, err = Server.Register(localAddrString, address, rand.Uint64(), display_name, Logger)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	ack, err := Server.Connect(NetworkSettings.UniqueUserID, Logger)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -148,6 +173,7 @@ func doAcceptUpdates() {
 			if players[update.PlayerID] == nil {
 				// New player, create it
 				players[update.PlayerID] = NewPlayer(update.PlayerID)
+				playerIds = append(playerIds, update.PlayerID)
 			}
 
 			// Update the player with what we received
@@ -180,6 +206,9 @@ func doLocalInput(dt float64) {
 
 	update = update.UpdateAngle(win.MousePosition())
 
+	// Timestamp
+	update.Time = Clock.GetCurrentTime()
+
 	// Update our local player immediately
 	localPlayer.Accept(update)
 
@@ -206,8 +235,8 @@ func doDraw() {
 	localPlayer.Draw(win)
 
 	// draw all the other players
-	for _, p := range players {
-		p.Draw(win)
+	for _, id := range playerIds {
+		players[id].Draw(win)
 	}
 
 	win.Update()
