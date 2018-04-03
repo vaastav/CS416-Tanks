@@ -5,7 +5,7 @@ import (
 	"../clocklib"
 	"../crdtlib"
 	"../serverlib"
-	"github.com/DistributedClocks/GoVector/govec"
+	"github.com/vaastav/GoVector/govec"
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/imdraw"
 	"github.com/faiface/pixel/pixelgl"
@@ -95,6 +95,7 @@ func main() {
 	Logger = govec.InitGoVector(clientName, clientName+"_logfile")
 	KVLogger = govec.InitGoVector(statsName, statsName+"_logfile")
 	PeerLogger = govec.InitGoVector(peersName, peersName+"_logfile")
+	PeerLogger.EnableBufferedWrites()
 
 	// KV: Setup the key-value store.
 	KVMap.M, err = KVStoreSetup()
@@ -135,6 +136,7 @@ func main() {
 
 	// Run the main thread
 	pixelgl.Run(run)
+	PeerLogger.Flush()
 }
 
 var win *pixelgl.Window
