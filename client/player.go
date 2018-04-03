@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/faiface/pixel"
 	"../clientlib"
+	"github.com/faiface/pixel"
 )
 
 // TODO add shooting mechanic

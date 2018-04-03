@@ -54,7 +54,7 @@ var (
 	localPlayer *Player
 	players     = make(map[uint64]*Player)
 	// Keep a separate list of player IDs around because go maps don't have a stable iteration order
-	playerIds   []uint64
+	playerIds []uint64
 )
 
 func main() {

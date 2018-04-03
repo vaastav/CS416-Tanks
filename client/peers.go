@@ -1,20 +1,20 @@
 package main
 
 import (
+	"../clientlib"
+	"fmt"
 	"log"
 	"net"
-	"../clientlib"
+	"net/rpc"
 	"sync"
 	"time"
-	"net/rpc"
-	"fmt"
 )
 
 type PeerRecord struct {
-	ClientID uint64
-	Api *clientlib.ClientAPIRemote
+	ClientID         uint64
+	Api              *clientlib.ClientAPIRemote
 	ConnectionStatus clientlib.Status
-	LastHeartbeat time.Time
+	LastHeartbeat    time.Time
 }
 
 type ClientListener int
@@ -29,9 +29,9 @@ var (
 )
 
 const (
-	HEARTBEAT_INTERVAL_SEND = time.Second * 1
-	HEARTBEAT_INTERVAL_RECV = time.Second * 2
-	HEARTBEAT_TIMEOUT = time.Second * 3
+	HEARTBEAT_INTERVAL_SEND  = time.Second * 1
+	HEARTBEAT_INTERVAL_RECV  = time.Second * 2
+	HEARTBEAT_TIMEOUT        = time.Second * 3
 	FAILURE_NOTIFICATION_TTL = 3 // TODO: need to decide on number
 )
 
@@ -113,10 +113,10 @@ func newPeer(id uint64, addr string) (*PeerRecord, error) {
 	go HeartbeatMonitorWorker(id)
 
 	return &PeerRecord{
-		ClientID: id,
-		Api: api,
+		ClientID:         id,
+		Api:              api,
 		ConnectionStatus: clientlib.CONNECTED,
-		LastHeartbeat: Clock.GetCurrentTime(),
+		LastHeartbeat:    Clock.GetCurrentTime(),
 	}, nil
 }
 
@@ -222,7 +222,7 @@ func HeartbeatMonitorWorker(clientID uint64) {
 func handleReconnection(clientID uint64) {
 	if peers[clientID].ConnectionStatus == clientlib.DISCONNECTED {
 		// Notify server of reconnection
-		isReconnected, err := server.NotifyConnection(clientlib.CONNECTED, clientID, NetworkSettings.UniqueUserID)
+		isReconnected, err := Server.NotifyConnection(clientlib.CONNECTED, clientID, NetworkSettings.UniqueUserID)
 		if err != nil {
 			log.Fatalf("[HandleReconnection] Error notifying server of reconnected peer %d: %s\n", clientID, err)
 		}
@@ -238,7 +238,7 @@ func handleDisconnection(clientID uint64) {
 	if peers[clientID].ConnectionStatus == clientlib.CONNECTED {
 		log.Printf("[HandleDisconnection] Peer %d has timed out\n", clientID)
 		// 1. Notify server of disconnection
-		success, err := server.NotifyConnection(clientlib.DISCONNECTED, clientID, NetworkSettings.UniqueUserID)
+		success, err := Server.NotifyConnection(clientlib.DISCONNECTED, clientID, NetworkSettings.UniqueUserID)
 		if err != nil {
 			log.Fatalf("[HandleDisconnection] Error notifying server of disconnected peer %d: %s\n", clientID, err)
 		}
@@ -343,10 +343,10 @@ func (*ClientListener) Register(clientID uint64, address string, tcpAddress stri
 	// Write down this new peer
 	peerLock.Lock()
 	peers[clientID] = &PeerRecord{
-		ClientID: clientID,
-		Api: clientlib.NewClientAPIRemote(conn),
+		ClientID:         clientID,
+		Api:              clientlib.NewClientAPIRemote(conn),
 		ConnectionStatus: clientlib.CONNECTED,
-		LastHeartbeat: Clock.GetCurrentTime(),
+		LastHeartbeat:    Clock.GetCurrentTime(),
 	}
 	peerLock.Unlock()
 

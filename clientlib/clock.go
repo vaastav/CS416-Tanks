@@ -1,17 +1,22 @@
 package clientlib
 
 import (
+	"../crdtlib"
 	"github.com/DistributedClocks/GoVector/govec"
 	"net/rpc"
-	"../crdtlib"
 	"time"
 )
 
 type ClientClockAPI interface {
-	TimeRequest() (time.Time, error)
-	SetOffset(offset time.Duration) error
+	// -----------------------------------------------------------------------------
+
+	// KV: Key-value store API calls.
 	KVClientGet(key int, logger *govec.GoLog) (crdtlib.ValueType, error)
 	KVClientPut(key int, vale crdtlib.ValueType, logger *govec.GoLog) error
+
+	// -----------------------------------------------------------------------------
+	TimeRequest() (time.Time, error)
+	SetOffset(offset time.Duration) error
 	Heartbeat(clientID uint64) error
 	NotifyConnection(clientID uint64) error
 	UpdateConnectionState(connectionInfo map[uint64]Status) error
@@ -24,9 +29,10 @@ type ClientClockRemote struct {
 }
 
 type Status int
+
 const (
-	CONNECTED Status = iota
-	DISCONNECTED
+	DISCONNECTED Status = iota
+	CONNECTED
 )
 
 type GetTimeRequest struct {
@@ -152,7 +158,6 @@ func (c *ClientClockRemote) SetOffset(offset time.Duration, logger *govec.GoLog)
 	logger.UnpackReceive("[SetOffset] command succeeded", response.B, &ack)
 	return nil
 }
-
 
 func (c *ClientClockRemote) Heartbeat(clientID uint64) error {
 	request := clientID

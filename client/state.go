@@ -1,9 +1,9 @@
 package main
 
 import (
+	"../clientlib"
 	"github.com/faiface/pixel"
 	"log"
-	"../clientlib"
 	"time"
 )
 
@@ -17,7 +17,7 @@ var (
 
 type PlayerRecord struct {
 	ID    uint64
-	Time time.Time
+	Time  time.Time
 	Pos   pixel.Vec
 	Angle float64
 }
@@ -52,8 +52,6 @@ func RecordWorker() {
 
 		// Accept the update
 		records[update.PlayerID].Accept(update)
-
-		// TODO validate incoming updates
 
 		// Display the update
 		UpdateChannel <- update

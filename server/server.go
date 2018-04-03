@@ -9,6 +9,10 @@
 package main
 
 import (
+	"../clientlib"
+	"../clocklib"
+	"../crdtlib"
+	"../serverlib"
 	"errors"
 	"fmt"
 	"github.com/DistributedClocks/GoVector/govec"
@@ -17,10 +21,6 @@ import (
 	"net"
 	"net/rpc"
 	"os"
-	"../clientlib"
-	"../clocklib"
-	"../crdtlib"
-	"../serverlib"
 	"sync"
 	"time"
 )
@@ -28,12 +28,12 @@ import (
 type TankServer int
 
 type Connection struct {
-	status clientlib.Status
+	status      clientlib.Status
 	displayName string
-	address string
-	rpcAddress string
-	client *clientlib.ClientClockRemote
-	offset time.Duration
+	address     string
+	rpcAddress  string
+	client      *clientlib.ClientClockRemote
+	offset      time.Duration
 }
 
 // Error definitions
@@ -66,7 +66,7 @@ var connections = struct {
 var disconnectedNodes = struct {
 	sync.RWMutex
 	m map[uint64][]uint64 /* key = disconnected node ID; value = list of node IDs who've reported node as disconnected */
-}{m : make(map[uint64][]uint64)}
+}{m: make(map[uint64][]uint64)}
 
 var Logger *govec.GoLog
 
@@ -109,7 +109,7 @@ func (s *TankServer) KVGet(request *serverlib.KVGetRequest, response *serverlib.
 	key := arg.Key
 	for _, clientId_ := range keyToClients.M[key] {
 		client, ok := connections.m[clientId_]
-		if ok && client.status == CONNECTED {
+		if ok && client.status == clientlib.CONNECTED {
 			latestOnline = clientId_
 			found = true
 		}
@@ -179,7 +179,7 @@ func (s *TankServer) KVPut(request *serverlib.KVPutRequest, response *serverlib.
 	var clients []uint64
 	for _, clientId := range clientsTmp {
 		connection := connections.m[clientId]
-		if connection.status == DISCONNECTED {
+		if connection.status == clientlib.DISCONNECTED {
 			continue
 		}
 		clients = append(clients, clientId)
@@ -192,7 +192,7 @@ func (s *TankServer) KVPut(request *serverlib.KVPutRequest, response *serverlib.
 		// clients to store this key-value pair on.
 		var candidates []uint64
 		for clientId, connection := range connections.m {
-			if connection.status == DISCONNECTED {
+			if connection.status == clientlib.DISCONNECTED {
 				continue
 			}
 			// Do not choose a client if it already exists in our list.
@@ -320,7 +320,7 @@ func (s *TankServer) syncClocks() {
 		//client, err := rpc.Dial("tcp", connection.rpcAddress)
 		//if err != nil {
 		//	 TODO : Better failure handling
-			//log.Fatal(err)
+		//log.Fatal(err)
 		//}
 
 		offset := offsetAverage - m[key]
@@ -354,7 +354,7 @@ func (s *TankServer) Register(peerInfo serverlib.PeerInfo, settings *serverlib.P
 
 	connections.Lock()
 	connections.m[peerInfo.ClientID] = Connection{
-		status: 	 clientlib.DISCONNECTED,
+		status:      clientlib.DISCONNECTED,
 		displayName: peerInfo.DisplayName,
 		address:     peerInfo.Address,
 		rpcAddress:  peerInfo.RPCAddress,

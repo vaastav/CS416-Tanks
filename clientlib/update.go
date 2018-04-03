@@ -16,11 +16,11 @@ const (
 type UpdateKind int
 
 type Update struct {
-	Kind UpdateKind
-	Time time.Time
+	Kind     UpdateKind
+	Time     time.Time
 	PlayerID uint64
-	Pos pixel.Vec
-	Angle float64
+	Pos      pixel.Vec
+	Angle    float64
 }
 
 func (u Update) UpdateAngle(mousePos pixel.Vec) Update {

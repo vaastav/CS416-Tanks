@@ -1,10 +1,10 @@
 package serverlib
 
 import (
-	"github.com/DistributedClocks/GoVector/govec"
-	"net/rpc"
 	"../clientlib"
 	"../crdtlib"
+	"github.com/DistributedClocks/GoVector/govec"
+	"net/rpc"
 	"time"
 )
 
@@ -185,9 +185,8 @@ func (r *RPCServerAPI) GetNodes(clientID uint64, logger *govec.GoLog) ([]PeerInf
 	return response.Nodes, nil
 }
 
-
 func (r *RPCServerAPI) NotifyConnection(connectionStatus clientlib.Status, peerID uint64, reporterID uint64) (bool, error) {
-	request := ConnectionInfo{Status:connectionStatus, PeerID:peerID, ReporterID: reporterID}
+	request := ConnectionInfo{Status: connectionStatus, PeerID: peerID, ReporterID: reporterID}
 	var ack bool
 
 	if err := r.api.Call("TankServer.NotifyConnection", &request, &ack); err != nil {

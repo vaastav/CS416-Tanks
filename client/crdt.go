@@ -1,10 +1,10 @@
 package main
 
 import (
+	"../crdtlib"
 	"io/ioutil"
 	"path"
 	"path/filepath"
-	"../crdtlib"
 	"strconv"
 	"strings"
 )

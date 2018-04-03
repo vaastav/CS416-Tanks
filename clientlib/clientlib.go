@@ -1,9 +1,8 @@
 package clientlib
 
 import (
-	"net"
 	"fmt"
-
+	"net"
 )
 
 type PeerNetSettings struct {
@@ -74,38 +73,38 @@ func (a *ClientAPIRemote) doAPICallAsync(msg ClientMessage) error {
 
 func (a *ClientAPIRemote) NotifyUpdate(clientID uint64, update Update) error {
 	return a.doAPICallAsync(ClientMessage{
-		Kind: UPDATE,
+		Kind:     UPDATE,
 		ClientID: clientID,
-		Update: update,
+		Update:   update,
 	})
 }
 
 func (a *ClientAPIRemote) NotifyFailure(clientID uint64, ttl int) error {
 	return a.doAPICallAsync(ClientMessage{
-		Kind: FAILURE,
+		Kind:     FAILURE,
 		ClientID: clientID,
-		Ttl: ttl,
+		Ttl:      ttl,
 	})
 }
 
 func (a *ClientAPIRemote) Register(clientID uint64, address string, tcpAddress string) error {
 	return a.doAPICall(ClientMessage{
-		Kind: REGISTER,
-		ClientID: clientID,
-		Address: address,
+		Kind:       REGISTER,
+		ClientID:   clientID,
+		Address:    address,
 		TcpAddress: tcpAddress,
 	})
 }
 
 type ClientAPIListener struct {
-	table    ClientAPI
-	conn *net.UDPConn
+	table ClientAPI
+	conn  *net.UDPConn
 }
 
 func NewClientAPIListener(table ClientAPI, conn *net.UDPConn) *ClientAPIListener {
 	return &ClientAPIListener{
-		table:    table,
-		conn: conn,
+		table: table,
+		conn:  conn,
 	}
 }
 

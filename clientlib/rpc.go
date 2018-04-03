@@ -1,22 +1,22 @@
 package clientlib
 
 import (
-	"net"
 	"bytes"
 	"encoding/gob"
+	"net"
 )
 
 type ClientMessage struct {
-	Kind ClientMessageKind
-	ClientID uint64
-	Update Update
-	Address string
+	Kind       ClientMessageKind
+	ClientID   uint64
+	Update     Update
+	Address    string
 	TcpAddress string
-	Ttl int
+	Ttl        int
 }
 
 type ClientReply struct {
-	Kind ClientReplyKind
+	Kind  ClientReplyKind
 	Error string
 }
 
