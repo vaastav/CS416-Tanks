@@ -177,7 +177,18 @@ func doAcceptUpdates() {
 			}
 
 			// Update the player with what we received
-			players[update.PlayerID].Accept(update)
+			switch update.Kind {
+			case clientlib.DEAD:
+				// Remove the player if they're dead
+				delete(players, update.PlayerID)
+				// make a new list of players
+				playerIds = nil
+				for id := range players {
+					playerIds = append(playerIds, id)
+				}
+			default:
+				players[update.PlayerID].Accept(update)
+			}
 		default:
 			// Done if there are no more events waiting
 			return
@@ -204,10 +215,9 @@ func doLocalInput(dt float64) {
 		update = update.MoveUp(dt)
 	}
 
-	update = update.UpdateAngle(win.MousePosition())
-
-	// Timestamp
-	update.Time = Clock.GetCurrentTime()
+	update = update.
+		UpdateAngle(win.MousePosition()).
+		Timestamp(Clock.GetCurrentTime())
 
 	// Update our local player immediately
 	localPlayer.Accept(update)

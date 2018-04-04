@@ -249,6 +249,9 @@ func (*ClientListener) NotifyFailure(clientID uint64, ttl int) error {
 	log.Println("NotifyFailure()", clientID)
 	peerLock.Lock()
 
+	// To send death notification
+	// RecordUpdates <- clientlib.DeadPlayer(clientID).Timestamp(Clock.GetCurrentTime())
+
 	if peer, ok := peers[clientID]; ok {
 		if err := peer.Api.Conn.Close(); err != nil {
 			// TODO: log error

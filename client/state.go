@@ -51,7 +51,14 @@ func RecordWorker() {
 		}
 
 		// Accept the update
-		records[update.PlayerID].Accept(update)
+		switch update.Kind {
+		case clientlib.DEAD:
+			// Remove the player if it's dead
+			delete(records, update.PlayerID)
+		default:
+			// Otherwise update its record with whatever came in
+			records[update.PlayerID].Accept(update)
+		}
 
 		// Display the update
 		UpdateChannel <- update
