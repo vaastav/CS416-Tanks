@@ -49,7 +49,14 @@ const (
 type InvalidClientError string
 
 func (e InvalidClientError) Error() string {
-	return fmt.Sprintf("Invalid Client Id [%s]. Please register.", e)
+	return fmt.Sprintf("Invalid Client Id [%s]. Please register.", string(e))
+}
+
+// Contains bad display name
+type DisplayNameInUseError string
+
+func (e DisplayNameInUseError) Error() string {
+	return fmt.Sprintf("Display Name [%s] is already in use.", string(e))
 }
 
 // -----------------------------------------------------------------------------
@@ -58,7 +65,7 @@ func (e InvalidClientError) Error() string {
 type KeyUnavailableError string
 
 func (e KeyUnavailableError) Error() string {
-	return fmt.Sprintf("Key [%s] is unavailable on any online client.", e)
+	return fmt.Sprintf("Key [%s] is unavailable on any online client.", string(e))
 }
 
 // -----------------------------------------------------------------------------
@@ -69,6 +76,11 @@ var connections = struct {
 	sync.RWMutex
 	m map[uint64]Connection
 }{m: make(map[uint64]Connection)}
+
+var displayNames = struct {
+	sync.RWMutex
+	M map[string]bool
+}{M: make(map[string]bool)}
 
 var Logger *govec.GoLog
 
@@ -338,12 +350,22 @@ func (s *TankServer) Register(peerInfo serverlib.PeerInfo, settings *serverlib.P
 	var incomingMessage string
 	Logger.UnpackReceive("[Register] request received from client", peerInfo.B, &incomingMessage)
 	fmt.Println(incomingMessage)
+	displayNames.Lock()
+	_, ok := displayNames.M[peerInfo.DisplayName]
+	if ok {
+		displayNames.Unlock()
+		b := Logger.PrepareSend("[Register] request rejected from client", peerInfo.ClientID)
+		*settings = serverlib.PeerSettingsRequest{clientlib.PeerNetSettings{}, b}
+		return DisplayNameInUseError(peerInfo.DisplayName)
+	}
+	displayNames.M[peerInfo.DisplayName] = true
+	displayNames.Unlock()
 	newSettings := clientlib.PeerNetSettings{
 		MinimumPeerConnections: 2,
 		UniqueUserID:           peerInfo.ClientID,
 		DisplayName:            peerInfo.DisplayName,
 	}
-
+	
 	b := Logger.PrepareSend("[Register] request accepted from client", peerInfo.ClientID)
 	*settings = serverlib.PeerSettingsRequest{newSettings, b}
 
