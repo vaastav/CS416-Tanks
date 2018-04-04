@@ -63,7 +63,12 @@ func RecordWorker() {
 		// Display the update
 		UpdateChannel <- update
 
-		// Send the update out
-		OutgoingUpdates <- update
+		switch update.Kind {
+		case clientlib.DEAD:
+			// do nothing
+		default:
+			// Send the update out if it's not a death update
+			OutgoingUpdates <- update
+		}
 	}
 }
