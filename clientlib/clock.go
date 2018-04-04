@@ -18,25 +18,17 @@ type ClientClockAPI interface {
 	TimeRequest() (time.Time, error)
 	SetOffset(offset time.Duration) error
 	Heartbeat(clientID uint64) error
-	NotifyConnection(clientID uint64) error
-	UpdateConnectionState(connectionInfo map[uint64]Status) error
-	TestConnection() error
+	Recover() (bool, error)
+	Ping() error
 }
 
 type ClientClockRemote struct {
-	api *rpc.Client
+	Conn *rpc.Client
 }
-
-type Status int
-
-const (
-	DISCONNECTED Status = iota
-	CONNECTED
-)
 
 const (
 	TIMEOUT              = 20 * time.Second
-	CONNECTIVITY_TIMEOUT = 3 * time.Second
+	CONNECTIVITY_TIMEOUT = 2 * time.Second
 )
 
 type GetTimeRequest struct {
@@ -89,7 +81,7 @@ func NewClientClockRemoteAPI(api *rpc.Client) *ClientClockRemote {
 }
 
 func (c *ClientClockRemote) doApiCall(call string, request interface{}, response interface{}, timeout time.Duration) error {
-	channel := c.api.Go(call, request, response, nil)
+	channel := c.Conn.Go(call, request, response, nil)
 	select {
 	case channel := <-channel.Done:
 		return channel.Error
@@ -173,33 +165,20 @@ func (c *ClientClockRemote) Heartbeat(clientID uint64) error {
 	return nil
 }
 
-func (c *ClientClockRemote) NotifyConnection(clientID uint64) error {
-	request := clientID
-	var ack bool
-
-	if err := c.doApiCall("ClockController.NotifyConnection", &request, &ack, CONNECTIVITY_TIMEOUT); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (c *ClientClockRemote) UpdateConnectionState(connectionInfo map[uint64]Status) error {
-	request := connectionInfo
-	var ack bool
-
-	if err := c.doApiCall("ClockController.UpdateConnectionState", &request, &ack, CONNECTIVITY_TIMEOUT); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (c *ClientClockRemote) TestConnection() error {
+func (c *ClientClockRemote) Recover() (bool, error) {
 	request := 0
 	var ack bool
+	if err := c.doApiCall("ClockController.Recover", &request, &ack, TIMEOUT); err != nil {
+		return false, err
+	}
 
-	if err := c.doApiCall("ClockController.TestConnection", &request, &ack, CONNECTIVITY_TIMEOUT); err != nil {
+	return ack, nil
+}
+
+func (c *ClientClockRemote) Ping() error {
+	request := 0
+	var ack bool
+	if err := c.doApiCall("ClockController.Ping", &request, &ack, CONNECTIVITY_TIMEOUT); err != nil {
 		return err
 	}
 

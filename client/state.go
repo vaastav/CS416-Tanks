@@ -39,7 +39,7 @@ func RecordWorker() {
 
 		// Add this player to our records if we haven't heard of them before
 		if records[update.PlayerID] == nil {
-			log.Println("heard of new player", update.PlayerID)
+			log.Println("Heard of new player", update.PlayerID)
 			records[update.PlayerID] = &PlayerRecord{
 				ID: update.PlayerID,
 			}

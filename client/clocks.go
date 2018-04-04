@@ -112,34 +112,28 @@ func (c *ClockController) Heartbeat(clientID uint64, ack *bool) error {
 	return nil
 }
 
-func (c *ClockController) NotifyConnection(clientID uint64, ack *bool) error {
+func (c *ClockController) Recover(request int, ack *bool) error {
 	peerLock.Lock()
-	defer peerLock.Unlock()
 
-	log.Println("TOLD SOMETHING IS CONNECTED")
-	updateConnectionStatus(clientID, clientlib.CONNECTED)
-	log.Printf("%s\n", peers)
-	// TODO: update associated sprite
+	for id, peer := range peers {
+		if err := peer.Api.Conn.Close(); err != nil {
+			// TODO: log error
+		}
+		if err := peer.Rpc.Conn.Close(); err != nil {
 
-	return nil
-}
-
-func (c *ClockController) UpdateConnectionState(connectionInfo map[uint64]clientlib.Status, ack *bool) error {
-	peerLock.Lock()
-	defer peerLock.Unlock()
-
-	log.Println("Updating connection state")
-	for id, status := range connectionInfo {
-		updateConnectionStatus(id, status)
+		}
+		delete(peers, id)
 	}
-	log.Printf("PEERS %s\n", peers)
 
+	log.Println("RECOVER!")
+
+	peerLock.Unlock()
+	*ack = true
 	return nil
 }
 
-func (c *ClockController) TestConnection(request int, ack *bool) error {
+func (c *ClockController) Ping(request int, ack *bool) error {
 	*ack = true
-	log.Println("PING!")
 	return nil
 }
 
@@ -148,15 +142,10 @@ func (c *ClockController) TestConnection(request int, ack *bool) error {
 func ClockWorker() {
 	inbound, err := net.ListenTCP("tcp", RPCAddr)
 	if err != nil {
-		// OK to exit here; we can't handle this failure
 		log.Fatal(err)
 	}
 
 	server := new(ClockController)
 	rpc.Register(server)
-	//rpc.Accept(inbound)
-	for {
-		conn, _ := inbound.Accept()
-		go rpc.ServeConn(conn)
-	}
+	rpc.Accept(inbound)
 }

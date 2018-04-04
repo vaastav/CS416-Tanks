@@ -19,7 +19,7 @@ type ServerAPI interface {
 	Register(address string, rpcAddress string, clientID uint64, displayName string, logger *govec.GoLog) (clientlib.PeerNetSettings, error)
 	Connect(clientID uint64, logger *govec.GoLog) (bool, error)
 	GetNodes(clientID uint64, logger *govec.GoLog) ([]PeerInfo, error)
-	NotifyConnection(connectionStatus clientlib.Status, peerID uint64, reporterID uint64) (bool, error)
+	NotifyFailure(clientID uint64) error
 }
 
 type RPCServerAPI struct {
@@ -74,12 +74,6 @@ type KVPutResponse struct {
 	B     []byte
 }
 
-type ConnectionInfo struct {
-	Status     clientlib.Status /* The connection status of the effected node */
-	PeerID     uint64           /* The ID of the effected node */
-	ReporterID uint64           /* The ID of the node notifying the server */
-}
-
 // Error definitions
 
 type DisconnectedError string
@@ -108,7 +102,6 @@ func (r *RPCServerAPI) doApiCall(call string, request interface{}, response inte
 // KV: Key-value store API call implementations.
 
 func (r *RPCServerAPI) KVGet(key uint64, clientId uint64, logger *govec.GoLog) (crdtlib.GetReply, error) {
-
 	arg := crdtlib.GetArg{clientId, key}
 	var reply crdtlib.GetReply
 	var response KVGetResponse
@@ -124,7 +117,6 @@ func (r *RPCServerAPI) KVGet(key uint64, clientId uint64, logger *govec.GoLog) (
 }
 
 func (r *RPCServerAPI) KVPut(key uint64, value crdtlib.ValueType, logger *govec.GoLog) error {
-
 	arg := crdtlib.PutArg{key, value}
 	var reply crdtlib.PutReply
 	var response KVPutResponse
@@ -171,7 +163,6 @@ func (r *RPCServerAPI) Connect(clientID uint64, logger *govec.GoLog) (bool, erro
 }
 
 func (r *RPCServerAPI) GetNodes(clientID uint64, logger *govec.GoLog) ([]PeerInfo, error) {
-
 	b := logger.PrepareSend("[GetNodes] request sent to server", clientID)
 	request := ClientIDRequest{clientID, b}
 	var response GetNodesResponse
@@ -185,13 +176,13 @@ func (r *RPCServerAPI) GetNodes(clientID uint64, logger *govec.GoLog) ([]PeerInf
 	return response.Nodes, nil
 }
 
-func (r *RPCServerAPI) NotifyConnection(connectionStatus clientlib.Status, peerID uint64, reporterID uint64) (bool, error) {
-	request := ConnectionInfo{Status: connectionStatus, PeerID: peerID, ReporterID: reporterID}
+func (r *RPCServerAPI) NotifyFailure(clientID uint64) error {
+	request := clientID
 	var ack bool
 
-	if err := r.api.Call("TankServer.NotifyConnection", &request, &ack); err != nil {
-		return false, err
+	if err := r.api.Call("TankServer.NotifyFailure", &request, &ack); err != nil {
+		return err
 	}
 
-	return ack, nil
+	return nil
 }
