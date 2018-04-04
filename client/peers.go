@@ -86,7 +86,7 @@ func newPeer(id uint64, addr string, rpcAddr string) (*PeerRecord, error) {
 	if err != nil {
 		return nil, err
 	}
-	api := clientlib.NewClientAPIRemote(conn)
+	api := clientlib.NewClientAPIRemote(conn, PeerLogger)
 
 	client, err := rpc.Dial("tcp", rpcAddr)
 	if err != nil {
@@ -136,7 +136,7 @@ func ListenerWorker() {
 	}
 
 	var listener ClientListener
-	apiListener := clientlib.NewClientAPIListener(&listener, conn)
+	apiListener := clientlib.NewClientAPIListener(&listener, conn, PeerLogger)
 
 	log.Println("Listening on", LocalAddr)
 
@@ -299,7 +299,7 @@ func (*ClientListener) Register(clientID uint64, address string, tcpAddress stri
 	peerLock.Lock()
 	peers[clientID] = &PeerRecord{
 		ClientID:      clientID,
-		Api:           clientlib.NewClientAPIRemote(conn),
+		Api:           clientlib.NewClientAPIRemote(conn, PeerLogger),
 		Rpc:           clientlib.NewClientClockRemoteAPI(client),
 		LastHeartbeat: Clock.GetCurrentTime(),
 	}

@@ -47,6 +47,7 @@ var (
 	Server   serverlib.ServerAPI
 	Logger   *govec.GoLog
 	KVLogger *govec.GoLog
+	PeerLogger *govec.GoLog
 )
 
 var (
@@ -90,8 +91,11 @@ func main() {
 	// Setup govector loggers
 	clientName := "client_" + display_name
 	statsName := clientName + "_stats"
+	peersName := clientName + "_peers"
 	Logger = govec.InitGoVector(clientName, clientName+"_logfile")
 	KVLogger = govec.InitGoVector(statsName, statsName+"_logfile")
+	PeerLogger = govec.InitGoVector(peersName, peersName+"_logfile")
+	PeerLogger.EnableBufferedWrites()
 
 	// KV: Setup the key-value store.
 	KVMap.M, err = KVStoreSetup()
@@ -132,6 +136,7 @@ func main() {
 
 	// Run the main thread
 	pixelgl.Run(run)
+	PeerLogger.Flush()
 }
 
 var win *pixelgl.Window
