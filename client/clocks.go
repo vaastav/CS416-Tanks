@@ -115,17 +115,11 @@ func (c *ClockController) Heartbeat(clientID uint64, ack *bool) error {
 func (c *ClockController) Recover(request int, ack *bool) error {
 	peerLock.Lock()
 
-	for id, peer := range peers {
-		if err := peer.Api.Conn.Close(); err != nil {
+	for id := range peers {
+		if err := removePeer(id); err != nil {
 			// TODO: log error
 		}
-		if err := peer.Rpc.Conn.Close(); err != nil {
-
-		}
-		delete(peers, id)
 	}
-
-	log.Println("RECOVER!")
 
 	peerLock.Unlock()
 	*ack = true

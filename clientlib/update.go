@@ -26,7 +26,7 @@ type Update struct {
 
 func DeadPlayer(playerID uint64) Update {
 	return Update{
-		Kind: DEAD,
+		Kind:     DEAD,
 		PlayerID: playerID,
 	}
 }

@@ -218,15 +218,9 @@ func handleDisconnection(clientID uint64) {
 		log.Fatalf("HandleDisconnection() Error notifying server of disconnected peer %d: %s\n", clientID, err)
 	}
 
-	if peer, ok := peers[clientID]; ok {
-		if err := peer.Api.Conn.Close(); err != nil {
-			// TODO log error
-		}
-		if err := peer.Rpc.Conn.Close(); err != nil {
-
-		}
+	if err := removePeer(clientID); err != nil {
+		// TODO: log error
 	}
-	delete(peers, clientID)
 
 	for _, peer := range peers {
 		err = peer.Api.NotifyFailure(clientID, FAILURE_NOTIFICATION_TTL)
@@ -234,6 +228,21 @@ func handleDisconnection(clientID uint64) {
 			log.Printf("[HandleDisconnection] Error notifying peer %d of disconnected peer %d", peer.ClientID, clientID)
 		}
 	}
+}
+
+func removePeer(clientID uint64) error {
+	if peer, ok := peers[clientID]; ok {
+		if err := peer.Api.Conn.Close(); err != nil {
+			return err
+		}
+		if err := peer.Rpc.Conn.Close(); err != nil {
+			return err
+		}
+	}
+	RecordUpdates <- clientlib.DeadPlayer(clientID).Timestamp(Clock.GetCurrentTime())
+	delete(peers, clientID)
+
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////
@@ -249,18 +258,9 @@ func (*ClientListener) NotifyFailure(clientID uint64, ttl int) error {
 	log.Println("NotifyFailure()", clientID)
 	peerLock.Lock()
 
-	// To send death notification
-	// RecordUpdates <- clientlib.DeadPlayer(clientID).Timestamp(Clock.GetCurrentTime())
-
-	if peer, ok := peers[clientID]; ok {
-		if err := peer.Api.Conn.Close(); err != nil {
-			// TODO: log error
-		}
-		if err := peer.Rpc.Conn.Close(); err != nil {
-
-		}
+	if err := removePeer(clientID); err != nil {
+		// TODO: log error
 	}
-	delete(peers, clientID)
 
 	if ttl > 0 {
 		ttl -= 1

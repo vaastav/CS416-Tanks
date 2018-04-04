@@ -365,7 +365,7 @@ func (s *TankServer) Register(peerInfo serverlib.PeerInfo, settings *serverlib.P
 		UniqueUserID:           peerInfo.ClientID,
 		DisplayName:            peerInfo.DisplayName,
 	}
-	
+
 	b := Logger.PrepareSend("[Register] request accepted from client", peerInfo.ClientID)
 	*settings = serverlib.PeerSettingsRequest{newSettings, b}
 
