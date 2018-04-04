@@ -28,7 +28,7 @@ type ClientAPIRemote struct {
 type ClientAPIError string
 
 func (e ClientAPIError) Error() string {
-	return fmt.Sprintf("ClientAPI Error: %s", e)
+	return fmt.Sprintf("ClientAPI Error: %s", string(e))
 }
 
 func NewClientAPIRemote(conn *net.UDPConn, logger *govec.GoLog) *ClientAPIRemote {
