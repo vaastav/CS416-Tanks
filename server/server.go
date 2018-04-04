@@ -15,7 +15,7 @@ import (
 	"../serverlib"
 	"errors"
 	"fmt"
-	"github.com/vaastav/GoVector/govec"
+	"github.com/DistributedClocks/GoVector/govec"
 	"log"
 	"math/rand"
 	"net"

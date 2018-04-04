@@ -5,7 +5,7 @@ import (
 	"../clocklib"
 	"../crdtlib"
 	"../serverlib"
-	"github.com/vaastav/GoVector/govec"
+	"github.com/DistributedClocks/GoVector/govec"
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/imdraw"
 	"github.com/faiface/pixel/pixelgl"

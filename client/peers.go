@@ -298,15 +298,10 @@ func (*ClientListener) Register(clientID uint64, address string, tcpAddress stri
 	// Write down this new peer
 	peerLock.Lock()
 	peers[clientID] = &PeerRecord{
-<<<<<<< d2282cb79284c029bd9bd77e1216ff69d7baf801
 		ClientID:      clientID,
-		Api:           clientlib.NewClientAPIRemote(conn),
+		Api:           clientlib.NewClientAPIRemote(conn, PeerLogger),
 		Rpc:           clientlib.NewClientClockRemoteAPI(client),
 		LastHeartbeat: Clock.GetCurrentTime(),
-=======
-		ClientID: clientID,
-		Api:      clientlib.NewClientAPIRemote(conn, PeerLogger),
->>>>>>> Add govector logging for shiviz
 	}
 	peerLock.Unlock()
 

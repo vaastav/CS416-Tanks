@@ -21,7 +21,7 @@ type ClientAPI interface {
 }
 
 type ClientAPIRemote struct {
-	conn *net.UDPConn
+	Conn *net.UDPConn
 	Logger *govec.GoLog
 }
 
@@ -33,21 +33,21 @@ func (e ClientAPIError) Error() string {
 
 func NewClientAPIRemote(conn *net.UDPConn, logger *govec.GoLog) *ClientAPIRemote {
 	return &ClientAPIRemote{
-		conn: conn,
+		Conn: conn,
 		Logger: logger,
 	}
 }
 
 func (a *ClientAPIRemote) doAPICall(msg ClientMessage) error {
 	// Send our message
-	err := SendMessage(a.conn, nil, &msg, a.Logger)
+	err := SendMessage(a.Conn, nil, &msg, a.Logger)
 	if err != nil {
 		return err
 	}
 
 	// Wait for a reply
 	var reply ClientReply
-	_, err = ReceiveMessage(a.conn, &reply, a.Logger)
+	_, err = ReceiveMessage(a.Conn, &reply, a.Logger)
 	if err != nil {
 		return err
 	}
@@ -65,7 +65,7 @@ func (a *ClientAPIRemote) doAPICall(msg ClientMessage) error {
 
 func (a *ClientAPIRemote) doAPICallAsync(msg ClientMessage) error {
 	// Send our message
-	err := SendMessage(a.conn, nil, &msg, a.Logger)
+	err := SendMessage(a.Conn, nil, &msg, a.Logger)
 	if err != nil {
 		return err
 	}
