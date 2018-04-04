@@ -339,7 +339,7 @@ func (s *TankServer) Register(peerInfo serverlib.PeerInfo, settings *serverlib.P
 	Logger.UnpackReceive("[Register] request received from client", peerInfo.B, &incomingMessage)
 	fmt.Println(incomingMessage)
 	newSettings := clientlib.PeerNetSettings{
-		MinimumPeerConnections: 5,
+		MinimumPeerConnections: 2,
 		UniqueUserID:           peerInfo.ClientID,
 		DisplayName:            peerInfo.DisplayName,
 	}
