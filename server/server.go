@@ -9,6 +9,7 @@
 package main
 
 import (
+	"bitbucket.org/bestchai/dinv/dinvRT"
 	"../clientlib"
 	"../clocklib"
 	"../crdtlib"
@@ -367,6 +368,7 @@ func (s *TankServer) Register(peerInfo serverlib.PeerInfo, settings *serverlib.P
 		DisplayName:            peerInfo.DisplayName,
 	}
 	
+	dinvRT.Dump("server.Register", "displayNames", displayNames)
 	b := Logger.PrepareSend("[Register] request accepted from client", peerInfo.ClientID)
 	*settings = serverlib.PeerSettingsRequest{newSettings, b}
 
