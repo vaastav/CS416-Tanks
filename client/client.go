@@ -61,11 +61,14 @@ var (
 
 var (
 	playerPic   pixel.Picture
+	bulletPic   pixel.Picture
 	localPlayer *Player
 	players     = make(map[uint64]*Player)
 	// Keep a separate list of player IDs around because go maps don't have a stable iteration order
-	playerIds []uint64
-	isBot     bool
+	playerIds 	[]uint64
+	bullets   	[]*Bullet
+	alive 		= true
+	isBot     	bool
 )
 
 func main() {
@@ -144,6 +147,12 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// Load the bullet picture
+	bulletPic, err = loadPicture("images/bullet.png")
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	// Create the local player
 	localPlayer = NewPlayer(NetworkSettings.UniqueUserID)
 	localPlayer.Pos = windowCfg.Bounds.Center()
@@ -186,14 +195,36 @@ func run() {
 		dt := time.Since(last).Seconds()
 		last = time.Now()
 
-		// Update the local player with local input
-		doLocalInput(dt)
+		// Update existing bullets
+		doUpdateBullets(dt)
+
+		// Update the local player with local input, if we're alive
+		if alive {doLocalInput(dt)}
 
 		// Accept all waiting events
 		doAcceptUpdates()
 
 		// Draw everything
 		doDraw()
+	}
+}
+
+func doUpdateBullets(dt float64) {
+	for i, bullet := range bullets {
+		bullet.Update(dt)
+
+		if !win.Bounds().Contains(bullet.Pos) {
+			// kill this bullet
+			if i+1 < len(bullets) {
+				bullets = append(bullets[:i], bullets[i+1:]...)
+			} else {
+				bullets = bullets[:i]
+			}
+		} else if bullet.Pos.Sub(localPlayer.Pos).Len() < PlayerHitBounds {
+			// we've been hit!
+			alive = false
+			RecordUpdates <- clientlib.DeadPlayer(localPlayer.ID)
+		}
 	}
 }
 
@@ -222,6 +253,9 @@ func doAcceptUpdates() {
 				for id := range players {
 					playerIds = append(playerIds, id)
 				}
+			case clientlib.FIRE:
+				// Add a bullet
+				bullets = append(bullets, NewBullet(update.Pos, update.Angle))
 			default:
 				players[update.PlayerID].Accept(update)
 			}
@@ -258,13 +292,25 @@ func doLocalInput(dt float64) {
 	// Update our local player immediately
 	localPlayer.Accept(update)
 
+	if win.JustPressed(pixelgl.MouseButtonLeft) {
+		// fire a bullet if the mouse button was pressed
+		offset := pixel.V(math.Cos(localPlayer.Angle), math.Sin(localPlayer.Angle)).Scaled(30)
+		position := localPlayer.Pos.Add(offset)
+
+		// Add the bullet to our list
+		bullets = append(bullets, NewBullet(position, localPlayer.Angle))
+
+		// Send an update about this bullet that was fired
+		RecordUpdates <- clientlib.FireBullet(localPlayer.ID, position, localPlayer.Angle).Timestamp(Clock.GetCurrentTime())
+	}
+
 	// Tell everybody else about it
 	RecordUpdates <- update
 }
 
 var imd = imdraw.New(nil)
 
-func doDraw() {
+func doDrawLocal() {
 	imd.Clear()
 
 	lineLength := win.Bounds().Max.Sub(win.Bounds().Min).Len()
@@ -275,14 +321,25 @@ func doDraw() {
 	imd.Push(localPlayer.Pos, endPoint)
 	imd.Line(3)
 
-	win.Clear(colornames.Whitesmoke)
-
 	imd.Draw(win)
 	localPlayer.Draw(win)
+}
+
+func doDraw() {
+	// Clear the screen
+	win.Clear(colornames.Whitesmoke)
+
+	// Draw ourselves if we're alive
+	if alive {doDrawLocal()}
 
 	// draw all the other players
 	for _, id := range playerIds {
 		players[id].Draw(win)
+	}
+
+	// then draw bullets
+	for _, bullet := range bullets {
+		bullet.Draw(win)
 	}
 
 	win.Update()
