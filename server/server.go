@@ -467,7 +467,7 @@ func (s *TankServer) NotifyFailure(clientID uint64, ack *bool) error {
 func monitorConnections() {
 	for {
 		time.Sleep(time.Second * 2)
-		connections.RLock()
+		connections.Lock()
 		for id, connection := range connections.m {
 			if connection.status == DISCONNECTED {
 				if err := connection.client.Ping(); err != nil {
@@ -475,18 +475,18 @@ func monitorConnections() {
 				}
 
 				if success, _ := connection.client.Recover(); success {
-					connections.RUnlock() // Do a little dance with locks, because we didn't want to
-					connections.Lock()    // hog the write lock while waiting for timeouts on RPC calls
+					//connections.RUnlock() // Do a little dance with locks, because we didn't want to
+					//connections.Lock()    // hog the write lock while waiting for timeouts on RPC calls
 
 					connection.status = CONNECTED
 					connections.m[id] = connection
 
-					connections.Unlock()
-					connections.RLock()
+					//connections.Unlock()
+					//connections.RLock()
 				}
 			}
 		}
-		connections.RUnlock()
+		connections.Unlock()
 	}
 }
 

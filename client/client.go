@@ -48,6 +48,7 @@ var (
 	Logger   *govec.GoLog
 	KVLogger *govec.GoLog
 	PeerLogger *govec.GoLog
+	IsLogUpdates bool
 )
 
 var (
@@ -96,6 +97,12 @@ func main() {
 	KVLogger = govec.InitGoVector(statsName, statsName+"_logfile")
 	PeerLogger = govec.InitGoVector(peersName, peersName+"_logfile")
 	PeerLogger.EnableBufferedWrites()
+
+	v := os.Getenv("LOG_UPDATES")
+	IsLogUpdates = true
+	if v == "" {
+		IsLogUpdates = false
+	}
 
 	// KV: Setup the key-value store.
 	KVMap.M, err = KVStoreSetup()

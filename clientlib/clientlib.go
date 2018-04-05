@@ -23,6 +23,7 @@ type ClientAPI interface {
 type ClientAPIRemote struct {
 	Conn *net.UDPConn
 	Logger *govec.GoLog
+	IsLogUpdates bool
 }
 
 type ClientAPIError string
@@ -31,23 +32,24 @@ func (e ClientAPIError) Error() string {
 	return fmt.Sprintf("ClientAPI Error: %s", string(e))
 }
 
-func NewClientAPIRemote(conn *net.UDPConn, logger *govec.GoLog) *ClientAPIRemote {
+func NewClientAPIRemote(conn *net.UDPConn, logger *govec.GoLog, logUpdates bool) *ClientAPIRemote {
 	return &ClientAPIRemote{
 		Conn: conn,
 		Logger: logger,
+		IsLogUpdates: logUpdates,
 	}
 }
 
 func (a *ClientAPIRemote) doAPICall(msg ClientMessage) error {
 	// Send our message
-	err := SendMessage(a.Conn, nil, &msg, a.Logger)
+	err := SendMessage(a.Conn, nil, &msg, a.Logger, a.IsLogUpdates)
 	if err != nil {
 		return err
 	}
 
 	// Wait for a reply
 	var reply ClientReply
-	_, err = ReceiveMessage(a.Conn, &reply, a.Logger)
+	_, err = ReceiveMessage(a.Conn, &reply, a.Logger, a.IsLogUpdates)
 	if err != nil {
 		return err
 	}
@@ -65,7 +67,7 @@ func (a *ClientAPIRemote) doAPICall(msg ClientMessage) error {
 
 func (a *ClientAPIRemote) doAPICallAsync(msg ClientMessage) error {
 	// Send our message
-	err := SendMessage(a.Conn, nil, &msg, a.Logger)
+	err := SendMessage(a.Conn, nil, &msg, a.Logger, a.IsLogUpdates)
 	if err != nil {
 		return err
 	}
@@ -103,20 +105,22 @@ type ClientAPIListener struct {
 	table    ClientAPI
 	conn *net.UDPConn
 	Logger *govec.GoLog
+	IsLogUpdates bool
 }
 
-func NewClientAPIListener(table ClientAPI, conn *net.UDPConn, logger *govec.GoLog) *ClientAPIListener {
+func NewClientAPIListener(table ClientAPI, conn *net.UDPConn, logger *govec.GoLog, logUpdates bool) *ClientAPIListener {
 	return &ClientAPIListener{
 		table:    table,
 		conn: conn,
 		Logger: logger,
+		IsLogUpdates: logUpdates,
 	}
 }
 
 func (l *ClientAPIListener) Accept() error {
 	// Receive a message and who it came from
 	var msg ClientMessage
-	addr, err := ReceiveMessage(l.conn, &msg, l.Logger)
+	addr, err := ReceiveMessage(l.conn, &msg, l.Logger, l.IsLogUpdates)
 	if err != nil {
 		return err
 	}
@@ -144,5 +148,5 @@ func (l *ClientAPIListener) Accept() error {
 	}
 
 	// Send the reply message
-	return SendMessage(l.conn, addr, &reply, l.Logger)
+	return SendMessage(l.conn, addr, &reply, l.Logger, l.IsLogUpdates)
 }
