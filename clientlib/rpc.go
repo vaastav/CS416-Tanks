@@ -41,7 +41,7 @@ const (
 // end of conn is receives the message.
 func SendMessage(conn *net.UDPConn, addr *net.UDPAddr, msg interface{}, logger *govec.GoLog, logUpdates bool) error {
 	buf := make([]byte, 0x400)
-	if (logUpdates) {
+	if logUpdates {
 		buf = logger.PrepareSend("[SendMessage] sending message to peer", msg)
 	} else {
 		var bufBytes bytes.Buffer
@@ -70,7 +70,7 @@ func ReceiveMessage(conn *net.UDPConn, msg interface{}, logger *govec.GoLog, log
 		return nil, err
 	}
 
-	if (logUpdates) {
+	if logUpdates {
 		logger.UnpackReceive("[ReceiveMessage] received message from peer", buf[:n], msg)
 	} else {
 		if err := gob.NewDecoder(bytes.NewReader(buf[:n])).Decode(msg); err != nil {

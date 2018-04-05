@@ -161,22 +161,28 @@ func HeartbeatWorker(clientID uint64) {
 		select {
 		case e := <-beat:
 			if e != nil {
-				if err := peers[clientID].Rpc.Ping(); err != nil {
-					peerLock.Lock()
-					handleDisconnection(clientID)
-					peerLock.Unlock()
-					break
+				peerLock.Lock()
+				if _, ok := peers[clientID]; ok {
+					if err := peers[clientID].Rpc.Ping(); err != nil {
+						handleDisconnection(clientID)
+						peerLock.Unlock()
+						break
+					}
 				}
+				peerLock.Unlock()
 				break
 			}
 			log.Printf("Heartbeat() Peer %d is alive\n", clientID)
 		case <-time.After(HEARTBEAT_TIMEOUT):
-			if err := peers[clientID].Rpc.Ping(); err != nil {
-				peerLock.Lock()
-				handleDisconnection(clientID)
-				peerLock.Unlock()
-				break
+			peerLock.Lock()
+			if _, ok := peers[clientID]; ok {
+				if err := peers[clientID].Rpc.Ping(); err != nil {
+					handleDisconnection(clientID)
+					peerLock.Unlock()
+					break
+				}
 			}
+			peerLock.Unlock()
 		}
 
 		time.Sleep(HEARTBEAT_INTERVAL)
@@ -230,19 +236,19 @@ func handleDisconnection(clientID uint64) {
 	}
 }
 
-func removePeer(clientID uint64) error {
+func removePeer(clientID uint64) (err error) {
 	if peer, ok := peers[clientID]; ok {
-		if err := peer.Api.Conn.Close(); err != nil {
-			return err
+		if err = peer.Api.Conn.Close(); err != nil {
+			// TODO: log error
 		}
-		if err := peer.Rpc.Conn.Close(); err != nil {
-			return err
+		if err = peer.Rpc.Conn.Close(); err != nil {
+			// TODO: log error
 		}
 	}
 	RecordUpdates <- clientlib.DeadPlayer(clientID).Timestamp(Clock.GetCurrentTime())
 	delete(peers, clientID)
 
-	return nil
+	return err
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////

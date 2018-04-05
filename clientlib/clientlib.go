@@ -1,8 +1,8 @@
 package clientlib
 
 import (
-	"github.com/DistributedClocks/GoVector/govec"
 	"fmt"
+	"github.com/DistributedClocks/GoVector/govec"
 	"net"
 )
 
@@ -21,8 +21,8 @@ type ClientAPI interface {
 }
 
 type ClientAPIRemote struct {
-	Conn *net.UDPConn
-	Logger *govec.GoLog
+	Conn         *net.UDPConn
+	Logger       *govec.GoLog
 	IsLogUpdates bool
 }
 
@@ -34,8 +34,8 @@ func (e ClientAPIError) Error() string {
 
 func NewClientAPIRemote(conn *net.UDPConn, logger *govec.GoLog, logUpdates bool) *ClientAPIRemote {
 	return &ClientAPIRemote{
-		Conn: conn,
-		Logger: logger,
+		Conn:         conn,
+		Logger:       logger,
 		IsLogUpdates: logUpdates,
 	}
 }
@@ -102,17 +102,17 @@ func (a *ClientAPIRemote) Register(clientID uint64, address string, tcpAddress s
 }
 
 type ClientAPIListener struct {
-	table    ClientAPI
-	conn *net.UDPConn
-	Logger *govec.GoLog
+	table        ClientAPI
+	conn         *net.UDPConn
+	Logger       *govec.GoLog
 	IsLogUpdates bool
 }
 
 func NewClientAPIListener(table ClientAPI, conn *net.UDPConn, logger *govec.GoLog, logUpdates bool) *ClientAPIListener {
 	return &ClientAPIListener{
-		table:    table,
-		conn: conn,
-		Logger: logger,
+		table:        table,
+		conn:         conn,
+		Logger:       logger,
 		IsLogUpdates: logUpdates,
 	}
 }

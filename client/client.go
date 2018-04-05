@@ -5,6 +5,7 @@ import (
 	"../clocklib"
 	"../crdtlib"
 	"../serverlib"
+	"flag"
 	"github.com/DistributedClocks/GoVector/govec"
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/imdraw"
@@ -25,10 +26,17 @@ import (
 	"time"
 )
 
+const (
+	MinX = 0
+	MinY = 0
+	MaxX = 1024
+	MaxY = 668
+)
+
 var (
 	windowCfg = pixelgl.WindowConfig{
-		Title:  "Wednesday",
-		Bounds: pixel.R(0, 0, 1024, 768),
+		Title:  "Battle Royale",
+		Bounds: pixel.R(MinX, MinY, MaxX, MaxY),
 		VSync:  true,
 	}
 )
@@ -43,11 +51,11 @@ var (
 		sync.RWMutex
 		M map[uint64]crdtlib.ValueType
 	}{M: make(map[uint64]crdtlib.ValueType)}
-	KVDir    = "stats-directory"
-	Server   serverlib.ServerAPI
-	Logger   *govec.GoLog
-	KVLogger *govec.GoLog
-	PeerLogger *govec.GoLog
+	KVDir        = "stats-directory"
+	Server       serverlib.ServerAPI
+	Logger       *govec.GoLog
+	KVLogger     *govec.GoLog
+	PeerLogger   *govec.GoLog
 	IsLogUpdates bool
 )
 
@@ -57,15 +65,20 @@ var (
 	players     = make(map[uint64]*Player)
 	// Keep a separate list of player IDs around because go maps don't have a stable iteration order
 	playerIds []uint64
+	isBot     bool
 )
 
 func main() {
 	rand.Seed(time.Now().UnixNano())
 
+	botFlag := flag.Bool("bot", false, "Runs the bot player")
+	flag.Parse()
+	isBot = *botFlag
+
 	// Connect to the server
-	serverAddr := os.Args[1]
-	localAddrString := os.Args[2]
-	display_name := os.Args[3]
+	serverAddr := flag.Arg(0)
+	localAddrString := flag.Arg(1)
+	displayName := flag.Arg(2)
 
 	var err error
 	LocalAddr, err = net.ResolveUDPAddr("udp", localAddrString)
@@ -90,7 +103,7 @@ func main() {
 	}
 
 	// Setup govector loggers
-	clientName := "client_" + display_name
+	clientName := "client_" + displayName
 	statsName := clientName + "_stats"
 	peersName := clientName + "_peers"
 	Logger = govec.InitGoVector(clientName, clientName+"_logfile")
@@ -112,7 +125,7 @@ func main() {
 
 	Server = serverlib.NewRPCServerAPI(client)
 	// TODO : Only register if a client ID is not already present
-	NetworkSettings, err = Server.Register(localAddrString, address, rand.Uint64(), display_name, Logger)
+	NetworkSettings, err = Server.Register(localAddrString, address, rand.Uint64(), displayName, Logger)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -142,11 +155,22 @@ func main() {
 	go ListenerWorker()
 
 	// Run the main thread
-	pixelgl.Run(run)
-	PeerLogger.Flush()
+	if isBot {
+		runBot()
+	} else {
+		pixelgl.Run(run)
+	}
+	PeerLogger.Flush() // TODO: this won't work for bots; they run until the process is killed :(
 }
 
 var win *pixelgl.Window
+
+func runBot() {
+	go GenerateMoves()
+	for {
+		doAcceptUpdates()
+	}
+}
 
 func run() {
 	var err error
