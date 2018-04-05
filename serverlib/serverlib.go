@@ -4,6 +4,7 @@ import (
 	"../clientlib"
 	"../crdtlib"
 	"github.com/DistributedClocks/GoVector/govec"
+	"bitbucket.org/bestchai/dinv/dinvRT"
 	"net/rpc"
 	"time"
 )
@@ -31,27 +32,36 @@ type PeerInfo struct {
 	RPCAddress  string
 	ClientID    uint64
 	DisplayName string
-	B           []byte
+}
+
+type RegisterRequest struct {
+	Pi PeerInfo
+	B []byte
+	DinvB []byte
 }
 
 type ClientIDRequest struct {
 	ClientID uint64
 	B        []byte
+	DinvB    []byte
 }
 
 type PeerSettingsRequest struct {
 	Settings clientlib.PeerNetSettings
 	B        []byte
+	DinvB    []byte
 }
 
 type GetNodesResponse struct {
 	Nodes []PeerInfo
 	B     []byte
+	DinvB []byte
 }
 
 type ConnectResponse struct {
 	Ack bool
 	B   []byte
+	DinvB []byte
 }
 
 type KVGetRequest struct {
@@ -135,44 +145,57 @@ func (r *RPCServerAPI) KVPut(key uint64, value crdtlib.ValueType, logger *govec.
 
 func (r *RPCServerAPI) Register(address string, rpcAddress string, clientID uint64, displayName string, logger *govec.GoLog) (clientlib.PeerNetSettings, error) {
 	b := logger.PrepareSend("[Resgiter] request sent to server", address)
-	request := PeerInfo{address, rpcAddress, clientID, displayName, b}
+	dinvb := dinvRT.Pack(address)
+	pi := PeerInfo{address, rpcAddress, clientID, displayName}
+	request := RegisterRequest{pi, b, dinvb}
 	var settings PeerSettingsRequest
 	var id uint64
+	var clientID2 uint64
 
 	if err := r.doApiCall("TankServer.Register", &request, &settings); err != nil {
 		logger.UnpackReceive("[Register] request rejected by server", settings.B, id)
+		dinvRT.Unpack(settings.DinvB, &clientID2)
 		return clientlib.PeerNetSettings{}, err
 	}
 
 	logger.UnpackReceive("[Register] request accepted by server", settings.B, &id)
+	dinvRT.Unpack(settings.DinvB, &clientID2)
 	return settings.Settings, nil
 }
 
 func (r *RPCServerAPI) Connect(clientID uint64, logger *govec.GoLog) (bool, error) {
 	var response ConnectResponse
 	var ack bool
+	var id uint64
 	b := logger.PrepareSend("[Connect] request sent to server", clientID)
-	request := ClientIDRequest{clientID, b}
+	dinvb := dinvRT.Pack(clientID)
+	request := ClientIDRequest{clientID, b, dinvb}
 	if err := r.doApiCall("TankServer.Connect", &request, &response); err != nil {
 		logger.UnpackReceive("[Connect] request rejected by server", response.B, &ack)
+		dinvRT.Unpack(response.DinvB, &id)
 		return false, err
 	}
 
 	logger.UnpackReceive("[Connect] request accepted by server", response.B, &ack)
+	dinvRT.Unpack(response.DinvB, &id)
 	return response.Ack, nil
 }
 
 func (r *RPCServerAPI) GetNodes(clientID uint64, logger *govec.GoLog) ([]PeerInfo, error) {
 	b := logger.PrepareSend("[GetNodes] request sent to server", clientID)
-	request := ClientIDRequest{clientID, b}
+	dinvb := dinvRT.Pack(clientID)
+	request := ClientIDRequest{clientID, b, dinvb}
 	var response GetNodesResponse
 	var id uint64
+	var id2 uint64
 	if err := r.doApiCall("TankServer.GetNodes", &request, &response); err != nil {
 		logger.UnpackReceive("[GetNodes] request rejected by server", response.B, &id)
+		dinvRT.Unpack(response.DinvB, &id2)
 		return nil, err
 	}
 
 	logger.UnpackReceive("[GetNodes] request accepted by server", response.B, &id)
+	dinvRT.Unpack(response.DinvB, &id2)
 	return response.Nodes, nil
 }
 

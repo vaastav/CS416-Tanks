@@ -5,6 +5,7 @@ import (
 	"../clocklib"
 	"../crdtlib"
 	"../serverlib"
+	"bitbucket.org/bestchai/dinv/dinvRT"
 	"flag"
 	"github.com/DistributedClocks/GoVector/govec"
 	"github.com/faiface/pixel"
@@ -126,6 +127,7 @@ func main() {
 	Logger = govec.InitGoVector(clientName, clientName+"_logfile")
 	KVLogger = govec.InitGoVector(statsName, statsName+"_logfile")
 	PeerLogger = govec.InitGoVector(peersName, peersName+"_logfile")
+	dinvRT.DoFast()
 	PeerLogger.EnableBufferedWrites()
 
 	v := os.Getenv("LOG_UPDATES")
@@ -146,6 +148,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	dinvRT.Track(clientName, "display_name", display_name)
 
 	ack, err := Server.Connect(NetworkSettings.UniqueUserID, Logger)
 	if err != nil {
