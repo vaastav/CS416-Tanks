@@ -7,6 +7,7 @@ import (
 
 const (
 	POSITION UpdateKind = iota
+	FIRE
 	DEAD
 )
 
@@ -28,6 +29,15 @@ func DeadPlayer(playerID uint64) Update {
 	return Update{
 		Kind:     DEAD,
 		PlayerID: playerID,
+	}
+}
+
+func FireBullet(playerID uint64, pos pixel.Vec, angle float64) Update {
+	return Update{
+		Kind:     FIRE,
+		PlayerID: playerID,
+		Pos:      pos,
+		Angle:    angle,
 	}
 }
 

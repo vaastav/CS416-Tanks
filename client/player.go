@@ -5,6 +5,10 @@ import (
 	"github.com/faiface/pixel"
 )
 
+const (
+	PlayerHitBounds = 25.0
+)
+
 // TODO add shooting mechanic
 
 type Player struct {
