@@ -371,7 +371,7 @@ func (s *TankServer) Register(peerInfo serverlib.PeerInfo, settings *serverlib.P
 
 	connections.Lock()
 	connections.m[peerInfo.ClientID] = Connection{
-		status:      DISCONNECTED,
+		status:      DISCONNECTED, // TODO: starts monitoring this connection in monitorConnections(), because its status is disconnected (bug)
 		displayName: peerInfo.DisplayName,
 		address:     peerInfo.Address,
 		rpcAddress:  peerInfo.RPCAddress,
@@ -470,19 +470,10 @@ func monitorConnections() {
 		connections.Lock()
 		for id, connection := range connections.m {
 			if connection.status == DISCONNECTED {
-				if err := connection.client.Ping(); err != nil {
-					continue
-				}
-
 				if success, _ := connection.client.Recover(); success {
-					//connections.RUnlock() // Do a little dance with locks, because we didn't want to
-					//connections.Lock()    // hog the write lock while waiting for timeouts on RPC calls
-
+					log.Println("monitorConnections()", id)
 					connection.status = CONNECTED
 					connections.m[id] = connection
-
-					//connections.Unlock()
-					//connections.RLock()
 				}
 			}
 		}

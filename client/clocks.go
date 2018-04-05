@@ -117,7 +117,7 @@ func (c *ClockController) Recover(request int, ack *bool) error {
 
 	for id := range peers {
 		if err := removePeer(id); err != nil {
-			// TODO: log error
+			log.Println("Recover() error removing peer", id)
 		}
 	}
 

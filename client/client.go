@@ -65,10 +65,10 @@ var (
 	localPlayer *Player
 	players     = make(map[uint64]*Player)
 	// Keep a separate list of player IDs around because go maps don't have a stable iteration order
-	playerIds 	[]uint64
-	bullets   	[]*Bullet
-	alive 		= true
-	isBot     	bool
+	playerIds []uint64
+	bullets   []*Bullet
+	alive     = true
+	isBot     bool
 )
 
 func main() {
@@ -199,7 +199,9 @@ func run() {
 		doUpdateBullets(dt)
 
 		// Update the local player with local input, if we're alive
-		if alive {doLocalInput(dt)}
+		if alive {
+			doLocalInput(dt)
+		}
 
 		// Accept all waiting events
 		doAcceptUpdates()
@@ -330,7 +332,9 @@ func doDraw() {
 	win.Clear(colornames.Whitesmoke)
 
 	// Draw ourselves if we're alive
-	if alive {doDrawLocal()}
+	if alive {
+		doDrawLocal()
+	}
 
 	// draw all the other players
 	for _, id := range playerIds {

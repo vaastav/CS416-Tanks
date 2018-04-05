@@ -168,7 +168,7 @@ func (c *ClientClockRemote) Heartbeat(clientID uint64) error {
 func (c *ClientClockRemote) Recover() (bool, error) {
 	request := 0
 	var ack bool
-	if err := c.doApiCall("ClockController.Recover", &request, &ack, TIMEOUT); err != nil {
+	if err := c.doApiCall("ClockController.Recover", &request, &ack, CONNECTIVITY_TIMEOUT); err != nil {
 		return false, err
 	}
 

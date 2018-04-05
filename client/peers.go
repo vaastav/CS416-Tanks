@@ -2,6 +2,7 @@ package main
 
 import (
 	"../clientlib"
+	"fmt"
 	"log"
 	"net"
 	"net/rpc"
@@ -32,6 +33,12 @@ const (
 	HEARTBEAT_TIMEOUT        = HEARTBEAT_INTERVAL * 2
 	FAILURE_NOTIFICATION_TTL = 3 // TODO: need to decide on number
 )
+
+type ExistingPeerError string
+
+func (e ExistingPeerError) Error() string {
+	return fmt.Sprintf("Client already knows peer id [%s].", string(e))
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -94,8 +101,9 @@ func newPeer(id uint64, addr string, rpcAddr string) (*PeerRecord, error) {
 	}
 	clockClient := clientlib.NewClientClockRemoteAPI(client)
 
-	err = api.Register(NetworkSettings.UniqueUserID, LocalAddr.String(), RPCAddr.String())
-	if err != nil {
+	if err = api.Register(NetworkSettings.UniqueUserID, LocalAddr.String(), RPCAddr.String()); err != nil {
+		err = conn.Close()
+		err = client.Close()
 		return nil, err
 	}
 
@@ -152,11 +160,17 @@ func HeartbeatWorker(clientID uint64) {
 	for {
 		beat := make(chan error, 1)
 
+		var conn *clientlib.ClientClockRemote
+		peerLock.Lock()
 		if _, ok := peers[clientID]; !ok {
-			break
+			peerLock.Unlock()
+			return
+		} else {
+			conn = peers[clientID].Rpc
 		}
+		peerLock.Unlock()
 
-		go func() { beat <- peers[clientID].Rpc.Heartbeat(NetworkSettings.UniqueUserID) }()
+		go func() { beat <- conn.Heartbeat(NetworkSettings.UniqueUserID) }()
 
 		select {
 		case e := <-beat:
@@ -166,7 +180,7 @@ func HeartbeatWorker(clientID uint64) {
 					if err := peers[clientID].Rpc.Ping(); err != nil {
 						handleDisconnection(clientID)
 						peerLock.Unlock()
-						break
+						return
 					}
 				}
 				peerLock.Unlock()
@@ -179,7 +193,7 @@ func HeartbeatWorker(clientID uint64) {
 				if err := peers[clientID].Rpc.Ping(); err != nil {
 					handleDisconnection(clientID)
 					peerLock.Unlock()
-					break
+					return
 				}
 			}
 			peerLock.Unlock()
@@ -191,21 +205,20 @@ func HeartbeatWorker(clientID uint64) {
 
 func HeartbeatMonitorWorker(clientID uint64) {
 	time.Sleep(HEARTBEAT_INTERVAL) // Grace period before monitoring begins
-loop:
 	for {
 		time.Sleep(HEARTBEAT_INTERVAL)
 		peerLock.Lock()
 
 		if _, ok := peers[clientID]; !ok {
 			peerLock.Unlock()
-			break
+			return
 		}
 
 		if time.Since(peers[clientID].LastHeartbeat) > HEARTBEAT_TIMEOUT {
 			if err := peers[clientID].Rpc.Ping(); err != nil {
 				handleDisconnection(clientID)
 				peerLock.Unlock()
-				break loop
+				return
 			}
 			peers[clientID].LastHeartbeat = Clock.GetCurrentTime()
 			peerLock.Unlock()
@@ -219,19 +232,20 @@ loop:
 
 // NOTE: must acquire lock before calling
 func handleDisconnection(clientID uint64) {
+	log.Println("handleDisconnection()", clientID)
 	err := Server.NotifyFailure(clientID)
 	if err != nil {
-		log.Fatalf("HandleDisconnection() Error notifying server of disconnected peer %d: %s\n", clientID, err)
+		log.Fatalf("handleDisconnection() Error notifying server of disconnected peer %d: %s\n", clientID, err)
 	}
 
 	if err := removePeer(clientID); err != nil {
-		// TODO: log error
+		log.Println("handleDisconnection() error removing peer", clientID)
 	}
 
 	for _, peer := range peers {
 		err = peer.Api.NotifyFailure(clientID, FAILURE_NOTIFICATION_TTL)
 		if err != nil {
-			log.Printf("[HandleDisconnection] Error notifying peer %d of disconnected peer %d", peer.ClientID, clientID)
+			log.Printf("handleDisconnection() Error notifying peer %d of disconnected peer %d", peer.ClientID, clientID)
 		}
 	}
 }
@@ -239,14 +253,15 @@ func handleDisconnection(clientID uint64) {
 func removePeer(clientID uint64) (err error) {
 	if peer, ok := peers[clientID]; ok {
 		if err = peer.Api.Conn.Close(); err != nil {
-			// TODO: log error
+			log.Println("removePeer() error closing connection with peer", clientID)
 		}
 		if err = peer.Rpc.Conn.Close(); err != nil {
-			// TODO: log error
+			log.Println("removePeer() error closing connection with peer", clientID)
 		}
+
+		RecordUpdates <- clientlib.DeadPlayer(clientID).Timestamp(Clock.GetCurrentTime())
+		delete(peers, clientID)
 	}
-	RecordUpdates <- clientlib.DeadPlayer(clientID).Timestamp(Clock.GetCurrentTime())
-	delete(peers, clientID)
 
 	return err
 }
@@ -265,7 +280,7 @@ func (*ClientListener) NotifyFailure(clientID uint64, ttl int) error {
 	peerLock.Lock()
 
 	if err := removePeer(clientID); err != nil {
-		// TODO: log error
+		log.Println("NotifyFailure() error removing peer", clientID)
 	}
 
 	if ttl > 0 {
@@ -284,6 +299,15 @@ func (*ClientListener) NotifyFailure(clientID uint64, ttl int) error {
 
 func (*ClientListener) Register(clientID uint64, address string, tcpAddress string) error {
 	log.Println("Register()", clientID, "address", address)
+
+	// Don't do anything if you already know this peer
+	peerLock.Lock()
+	if _, ok := peers[clientID]; ok {
+		log.Println("Register() all peers:", peers)
+		peerLock.Unlock()
+		return ExistingPeerError(clientID)
+	}
+	peerLock.Unlock()
 
 	// Try to connect
 	udpAddr, err := net.ResolveUDPAddr("udp", address)
