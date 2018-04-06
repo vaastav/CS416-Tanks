@@ -23,14 +23,16 @@ type Update struct {
 	Time     time.Time
 	Nonce    uint64
 	PlayerID uint64
+	OtherPlayer uint64
 	Pos      pixel.Vec
 	Angle    float64
 }
 
-func DeadPlayer(playerID uint64) Update {
+func DeadPlayer(playerID uint64, cause uint64) Update {
 	return Update{
 		Kind:     DEAD,
 		PlayerID: playerID,
+		OtherPlayer: cause,
 	}
 }
 

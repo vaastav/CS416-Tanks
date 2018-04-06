@@ -259,7 +259,7 @@ func removePeer(clientID uint64) (err error) {
 			log.Println("removePeer() error closing connection with peer", clientID)
 		}
 
-		RecordUpdates <- clientlib.DeadPlayer(clientID).Timestamp(Clock.GetCurrentTime())
+		RecordUpdates <- clientlib.DeadPlayer(clientID, 0).Timestamp(Clock.GetCurrentTime())
 		delete(peers, clientID)
 	}
 

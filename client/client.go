@@ -267,7 +267,21 @@ func doUpdateBullets(dt float64) {
 		} else if bullet.Pos.Sub(localPlayer.Pos).Len() < PlayerHitBounds && alive {
 			// we've been hit!
 			alive = false
-			RecordUpdates <- clientlib.DeadPlayer(localPlayer.ID).Timestamp(Clock.GetCurrentTime())
+
+			go func() {
+				// Increment our death count
+				// Ignore error in this case
+				value, _ := KVGet(localPlayer.ID)
+
+				value.NumDeaths += 1
+
+				err := KVPut(localPlayer.ID, value)
+				if err != nil {
+					log.Fatal(err)
+				}
+			}()
+
+			RecordUpdates <- clientlib.DeadPlayer(localPlayer.ID, bullet.PlayerID).Timestamp(Clock.GetCurrentTime())
 		}
 	}
 }
@@ -297,9 +311,24 @@ func doAcceptUpdates() {
 				for id := range players {
 					playerIds = append(playerIds, id)
 				}
+
+				if update.OtherPlayer == localPlayer.ID {
+					go func() {
+						// Increment our kill count
+						// Ignore error in this case
+						value, _ := KVGet(localPlayer.ID)
+
+						value.NumKills += 1
+
+						err := KVPut(localPlayer.ID, value)
+						if err != nil {
+							log.Fatal(err)
+						}
+					}()
+				}
 			case clientlib.FIRE:
 				// Add a bullet
-				bullets = append(bullets, NewBullet(update.Pos, update.Angle))
+				bullets = append(bullets, NewBullet(update.PlayerID, update.Pos, update.Angle))
 			default:
 				players[update.PlayerID].Accept(update)
 			}
@@ -351,7 +380,7 @@ func FireBullet() {
 	position := localPlayer.Pos.Add(offset)
 
 	// Add the bullet to our list
-	bullets = append(bullets, NewBullet(position, localPlayer.Angle))
+	bullets = append(bullets, NewBullet(localPlayer.ID, position, localPlayer.Angle))
 
 	// Send an update about this bullet that was fired
 	RecordUpdates <- clientlib.FireBullet(localPlayer.ID, position, localPlayer.Angle).Timestamp(Clock.GetCurrentTime())
