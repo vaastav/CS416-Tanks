@@ -569,7 +569,7 @@ func main() {
 	// Needed to make dinv work on windows as this is a function I have added
 	// Comment after generating relevant logs
 	if (UseDinv) {
-		dinvRT.DoFast()
+		//dinvRT.DoFast()
 	}
 
 	go monitorConnections()

@@ -5,10 +5,11 @@ import (
 	"github.com/faiface/pixel"
 	"log"
 	"time"
+	"math"
 )
 
 const (
-	TimeDelta = -100 * time.Millisecond
+	TimeDelta = -300 * time.Millisecond
 )
 
 var (
@@ -85,12 +86,41 @@ func RecordWorker() {
 		case clientlib.DEAD:
 			// Remove the player if it's dead
 			delete(records, update.PlayerID)
-		default:
+		case clientlib.FIRE:
+			// Check that player is nearby where this shot was fired
+			if records[update.PlayerID] == nil {
+				// No such player?
+				log.Println("Ignoring shot fired from non-player")
+				continue
+			}
+
+			playerPos := records[update.PlayerID].Pos
+			playerAngle := records[update.PlayerID].Angle
+			posError := playerPos.Sub(update.Pos).Len() / playerPos.Len()
+			angleError := math.Abs(playerAngle - update.Angle) / math.Abs(playerAngle)
+
+			if posError > .1 || angleError > .1 {
+				// Ignore shots fired if they're very different from
+				// where we think the player currently is
+				log.Println("Ignoring bad shot")
+				continue
+			}
+		case clientlib.POSITION:
 			// Add this player to our records if we haven't heard of them before
 			if records[update.PlayerID] == nil {
 				log.Println("Heard of new player", update.PlayerID)
 				records[update.PlayerID] = &PlayerRecord{
 					ID: update.PlayerID,
+				}
+			} else {
+				// check that this new position is reasonable
+				last := records[update.PlayerID].Pos
+				distance := update.Pos.Sub(last).Len()
+				dt := update.Time.Sub(records[update.PlayerID].Time).Seconds()
+
+				if distance > 2 * clientlib.PlayerSpeed * dt {
+					log.Println("Ignoring bad position from", last, "to", update.Pos, "in", dt)
+					continue
 				}
 			}
 
