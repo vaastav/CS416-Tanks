@@ -24,6 +24,7 @@ import (
 	"strconv"
 	"sync"
 	"time"
+	"runtime/pprof"
 )
 
 const (
@@ -75,8 +76,21 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 
 	botFlag := flag.Bool("bot", false, "Runs the bot player")
+	cpuprofile := flag.String("cpuprofile", "", "write a cpu profile");
 	flag.Parse()
 	isBot = *botFlag
+
+	// start profiling
+	if *cpuprofile != "" {
+		log.Println("Starting cpu profile")
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
 
 	// Connect to the server
 	serverAddr := flag.Arg(0)

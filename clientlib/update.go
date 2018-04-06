@@ -3,6 +3,7 @@ package clientlib
 import (
 	"github.com/faiface/pixel"
 	"time"
+	"math/rand"
 )
 
 const (
@@ -20,6 +21,7 @@ type UpdateKind int
 type Update struct {
 	Kind     UpdateKind
 	Time     time.Time
+	Nonce    uint64
 	PlayerID uint64
 	Pos      pixel.Vec
 	Angle    float64
@@ -73,6 +75,8 @@ func (u Update) MoveUp(dt float64) Update {
 
 func (u Update) Timestamp(time time.Time) Update {
 	u.Time = time
+	// Set a nonce now
+	u.Nonce = rand.Uint64()
 
 	return u
 }

@@ -7,12 +7,18 @@ import (
 	"time"
 )
 
+const (
+	TimeDelta = -100 * time.Millisecond
+)
+
 var (
 	RecordUpdates = make(chan clientlib.Update, 1000)
 )
 
 var (
 	records = make(map[uint64]*PlayerRecord)
+	history []clientlib.Update
+	historyMap = make(map[uint64]interface{})
 )
 
 type PlayerRecord struct {
@@ -32,10 +38,47 @@ func (r *PlayerRecord) Accept(update clientlib.Update) {
 	}
 }
 
+func pruneHistory() {
+	fence := Clock.GetCurrentTime().Add(TimeDelta)
+
+	for len(history) > 0 {
+		if history[0].Time.Before(fence) {
+			// Remove this item if it's too old
+			delete(historyMap, history[0].Nonce)
+
+			if len(history) > 1 {
+				history = history[1:]
+			} else {
+				history = nil
+			}
+		} else {
+			// otherwise, quit pruning
+			break
+		}
+	}
+}
+
 func RecordWorker() {
 	for {
 		// Get the next incoming update
 		update := <-RecordUpdates
+
+		if update.Time.Before(Clock.GetCurrentTime().Add(TimeDelta)) {
+			// Ignore very old updates
+			continue
+		}
+
+		// Prune history
+		pruneHistory()
+
+		if _, exists := historyMap[update.Nonce]; exists {
+			// We've already seen this update
+			continue
+		}
+
+		// Write down that we've seen this update
+		historyMap[update.Nonce] = nil
+		history = append(history, update)
 
 		// Add this player to our records if we haven't heard of them before
 		if records[update.PlayerID] == nil {
@@ -43,11 +86,6 @@ func RecordWorker() {
 			records[update.PlayerID] = &PlayerRecord{
 				ID: update.PlayerID,
 			}
-		}
-
-		if !update.Time.After(records[update.PlayerID].Time) {
-			// Ignore updates if we have newer information
-			continue
 		}
 
 		// Accept the update
