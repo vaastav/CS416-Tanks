@@ -13,6 +13,7 @@ import (
 	"../clocklib"
 	"../crdtlib"
 	"../serverlib"
+	"bitbucket.org/bestchai/dinv/dinvRT"
 	"errors"
 	"fmt"
 	"github.com/DistributedClocks/GoVector/govec"
@@ -82,6 +83,8 @@ var displayNames = struct {
 	sync.RWMutex
 	M map[string]bool
 }{M: make(map[string]bool)}
+
+var UseDinv bool
 
 var Logger *govec.GoLog
 
@@ -278,9 +281,9 @@ func (s *TankServer) KVPut(request *serverlib.KVPutRequest, response *serverlib.
 
 // Server Implementation
 
-func encodeToByte(v interface{}) (data []byte) {
-	s := fmt.Sprintf("%v", v)
-	return []byte(s)
+func encodeToString(v interface{}) (s string) {
+	s = fmt.Sprintf("%v", v)
+	return s
 }
 
 func (s *TankServer) syncClocks() {
@@ -346,29 +349,47 @@ func (s *TankServer) syncClocks() {
 	connections.Unlock()
 }
 
-func (s *TankServer) Register(peerInfo serverlib.PeerInfo, settings *serverlib.PeerSettingsRequest) error {
+func (s *TankServer) Register(request serverlib.RegisterRequest, settings *serverlib.PeerSettingsRequest) error {
+	peerInfo := request.Pi
 	log.Println("Register()", peerInfo.ClientID)
 	var incomingMessage string
-	Logger.UnpackReceive("[Register] request received from client", peerInfo.B, &incomingMessage)
+	Logger.UnpackReceive("[Register] request received from client", request.B, &incomingMessage)
 	fmt.Println(incomingMessage)
+	var addressString string
+	if(UseDinv) {
+		dinvRT.Unpack(request.DinvB, &addressString)
+	}
 	displayNames.Lock()
 	_, ok := displayNames.M[peerInfo.DisplayName]
 	if ok {
 		displayNames.Unlock()
 		b := Logger.PrepareSend("[Register] request rejected from client", peerInfo.ClientID)
-		*settings = serverlib.PeerSettingsRequest{clientlib.PeerNetSettings{}, b}
+		if (UseDinv) {
+			dinvb := dinvRT.Pack(peerInfo.ClientID)
+			*settings = serverlib.PeerSettingsRequest{clientlib.PeerNetSettings{}, b, dinvb}
+		} else {
+			*settings = serverlib.PeerSettingsRequest{clientlib.PeerNetSettings{}, b, b}
+		}
 		return DisplayNameInUseError(peerInfo.DisplayName)
 	}
 	displayNames.M[peerInfo.DisplayName] = true
-	displayNames.Unlock()
 	newSettings := clientlib.PeerNetSettings{
 		MinimumPeerConnections: 2,
 		UniqueUserID:           peerInfo.ClientID,
 		DisplayName:            peerInfo.DisplayName,
 	}
 
+	if (UseDinv){
+		dinvRT.Track("server.Register", "displayNames", encodeToString(displayNames.M))
+	}
+	displayNames.Unlock()
 	b := Logger.PrepareSend("[Register] request accepted from client", peerInfo.ClientID)
-	*settings = serverlib.PeerSettingsRequest{newSettings, b}
+	if (UseDinv) {
+		dinvb := dinvRT.Pack(peerInfo.ClientID)
+		*settings = serverlib.PeerSettingsRequest{newSettings, b, dinvb}
+	} else {
+		*settings = serverlib.PeerSettingsRequest{newSettings, b, b}
+	}
 
 	connections.Lock()
 	connections.m[peerInfo.ClientID] = Connection{
@@ -387,21 +408,35 @@ func (s *TankServer) Connect(clientReq serverlib.ClientIDRequest, response *serv
 	clientID := clientReq.ClientID
 	log.Println("Connect()", clientID)
 	var incomingMessage int
+	var dinvMessage int
 	Logger.UnpackReceive("[Connect] received from client", clientReq.B, &incomingMessage)
+	if (UseDinv){
+		dinvRT.Unpack(clientReq.DinvB, &dinvMessage)
+	}
 	connections.Lock()
 	c, ok := connections.m[clientID]
 	if !ok {
 		connections.Unlock()
 		ack := false
 		b := Logger.PrepareSend("[Connect] Request rejected from client", ack)
-		*response = serverlib.ConnectResponse{ack, b}
+		if (UseDinv) {
+			dinvb := dinvRT.Pack(dinvMessage)
+			*response = serverlib.ConnectResponse{ack, b, dinvb}
+		} else {
+			*response = serverlib.ConnectResponse{ack, b, b}
+		}
 		return InvalidClientError(clientID)
 	}
 	if c.status == CONNECTED {
 		connections.Unlock()
 		ack := false
 		b := Logger.PrepareSend("[Connect] Request rejected from client", ack)
-		*response = serverlib.ConnectResponse{ack, b}
+		if (UseDinv) {
+			dinvb := dinvRT.Pack(dinvMessage)
+			*response = serverlib.ConnectResponse{ack, b, dinvb}
+		} else {
+			*response = serverlib.ConnectResponse{ack, b, b}
+		}
 		return errors.New("client already connected")
 	}
 	c.status = CONNECTED
@@ -409,7 +444,12 @@ func (s *TankServer) Connect(clientReq serverlib.ClientIDRequest, response *serv
 	connections.Unlock()
 	ack := true
 	b := Logger.PrepareSend("[Connect] Request accepted from client", ack)
-	*response = serverlib.ConnectResponse{ack, b}
+	if (UseDinv) {
+		dinvb := dinvRT.Pack(dinvMessage)
+		*response = serverlib.ConnectResponse{ack, b, dinvb}
+	} else {
+		*response = serverlib.ConnectResponse{ack, b, b}
+	}
 	// Sync clock with the new client
 	go s.syncClocks()
 	return nil
@@ -419,12 +459,21 @@ func (s *TankServer) GetNodes(clientReq serverlib.ClientIDRequest, addrSet *serv
 	clientID := clientReq.ClientID
 	log.Println("GetNodes()", clientID)
 	var incomingMessage int
+	var dinvMessage int
 	Logger.UnpackReceive("[GetNodes] received from client", clientReq.B, &incomingMessage)
+	if (UseDinv) {
+		dinvRT.Unpack(clientReq.DinvB, &dinvMessage)
+	}
 	connections.RLock()
 
 	if _, ok := connections.m[clientID]; !ok {
 		b := Logger.PrepareSend("[GetNodes] rejected from client", clientID)
-		*addrSet = serverlib.GetNodesResponse{nil, b}
+		if (UseDinv) {
+			dinvb := dinvRT.Pack(dinvMessage)
+			*addrSet = serverlib.GetNodesResponse{nil, b, dinvb}
+		} else {
+			*addrSet = serverlib.GetNodesResponse{nil, b, b}
+		}
 		return InvalidClientError(clientID)
 	}
 
@@ -455,7 +504,12 @@ func (s *TankServer) GetNodes(clientReq serverlib.ClientIDRequest, addrSet *serv
 
 	// TODO : Filter the addresses better for network topology
 	b := Logger.PrepareSend("[GetNodes] accepted from client", clientID)
-	*addrSet = serverlib.GetNodesResponse{peerAddresses, b}
+	if (UseDinv) {
+		dinvb := dinvRT.Pack(dinvMessage)
+		*addrSet = serverlib.GetNodesResponse{peerAddresses, b, dinvb}
+	} else {
+		*addrSet = serverlib.GetNodesResponse{peerAddresses, b, b}
+	}
 	return nil
 }
 
@@ -504,6 +558,18 @@ func main() {
 	inbound, err := net.ListenTCP("tcp", serverAddr)
 	if err != nil {
 		log.Fatal("main() Failed to listen on TCP address:", err)
+	}
+
+	v2 := os.Getenv("USE_DINV")
+	UseDinv = true
+	if v2 == "" {
+		UseDinv = false
+	}
+
+	// Needed to make dinv work on windows as this is a function I have added
+	// Comment after generating relevant logs
+	if (UseDinv) {
+		dinvRT.DoFast()
 	}
 
 	go monitorConnections()

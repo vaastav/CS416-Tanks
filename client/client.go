@@ -5,6 +5,7 @@ import (
 	"../clocklib"
 	"../crdtlib"
 	"../serverlib"
+	"bitbucket.org/bestchai/dinv/dinvRT"
 	"flag"
 	"github.com/DistributedClocks/GoVector/govec"
 	"github.com/faiface/pixel"
@@ -58,6 +59,7 @@ var (
 	KVLogger     *govec.GoLog
 	PeerLogger   *govec.GoLog
 	IsLogUpdates bool
+	UseDinv      bool
 )
 
 var (
@@ -134,6 +136,19 @@ func main() {
 		IsLogUpdates = false
 	}
 
+	v2 := os.Getenv("USE_DINV")
+	UseDinv = true
+	if v2 == "" {
+		log.Println("Not using Dinv")
+		UseDinv = false
+	}
+
+	// Needed to make dinv work on windows as this is a function I have added
+	// Comment after generating relevant logs
+	if (UseDinv) {
+		//dinvRT.DoFast()
+	}
+
 	// KV: Setup the key-value store.
 	KVMap.M, err = KVStoreSetup()
 	if err != nil {
@@ -142,12 +157,16 @@ func main() {
 
 	Server = serverlib.NewRPCServerAPI(client)
 	// TODO : Only register if a client ID is not already present
-	NetworkSettings, err = Server.Register(localAddrString, address, rand.Uint64(), displayName, Logger)
+	NetworkSettings, err = Server.Register(localAddrString, address, rand.Uint64(), displayName, Logger, UseDinv)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	ack, err := Server.Connect(NetworkSettings.UniqueUserID, Logger)
+	if (UseDinv) {
+		dinvRT.Track(clientName, "display_name", displayName)
+	}
+
+	ack, err := Server.Connect(NetworkSettings.UniqueUserID, Logger, UseDinv)
 	if err != nil {
 		log.Fatal(err)
 	}
