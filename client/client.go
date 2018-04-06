@@ -237,10 +237,10 @@ func doUpdateBullets(dt float64) {
 			} else {
 				bullets = bullets[:i]
 			}
-		} else if bullet.Pos.Sub(localPlayer.Pos).Len() < PlayerHitBounds {
+		} else if bullet.Pos.Sub(localPlayer.Pos).Len() < PlayerHitBounds && alive {
 			// we've been hit!
 			alive = false
-			RecordUpdates <- clientlib.DeadPlayer(localPlayer.ID)
+			RecordUpdates <- clientlib.DeadPlayer(localPlayer.ID).Timestamp(Clock.GetCurrentTime())
 		}
 	}
 }

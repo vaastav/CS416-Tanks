@@ -80,20 +80,20 @@ func RecordWorker() {
 		historyMap[update.Nonce] = nil
 		history = append(history, update)
 
-		// Add this player to our records if we haven't heard of them before
-		if records[update.PlayerID] == nil {
-			log.Println("Heard of new player", update.PlayerID)
-			records[update.PlayerID] = &PlayerRecord{
-				ID: update.PlayerID,
-			}
-		}
-
 		// Accept the update
 		switch update.Kind {
 		case clientlib.DEAD:
 			// Remove the player if it's dead
 			delete(records, update.PlayerID)
 		default:
+			// Add this player to our records if we haven't heard of them before
+			if records[update.PlayerID] == nil {
+				log.Println("Heard of new player", update.PlayerID)
+				records[update.PlayerID] = &PlayerRecord{
+					ID: update.PlayerID,
+				}
+			}
+
 			// Otherwise update its record with whatever came in
 			records[update.PlayerID].Accept(update)
 		}
@@ -101,12 +101,7 @@ func RecordWorker() {
 		// Display the update
 		UpdateChannel <- update
 
-		switch update.Kind {
-		case clientlib.DEAD:
-			// do nothing
-		default:
-			// Send the update out if it's not a death update
-			OutgoingUpdates <- update
-		}
+		// Send the update out
+		OutgoingUpdates <- update
 	}
 }
