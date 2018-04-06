@@ -28,7 +28,7 @@ type ClientClockRemote struct {
 
 const (
 	TIMEOUT              = 20 * time.Second
-	CONNECTIVITY_TIMEOUT = 2 * time.Second
+	CONNECTIVITY_TIMEOUT = 1 * time.Second
 )
 
 type GetTimeRequest struct {
@@ -168,7 +168,7 @@ func (c *ClientClockRemote) Heartbeat(clientID uint64) error {
 func (c *ClientClockRemote) Recover() (bool, error) {
 	request := 0
 	var ack bool
-	if err := c.doApiCall("ClockController.Recover", &request, &ack, TIMEOUT); err != nil {
+	if err := c.doApiCall("ClockController.Recover", &request, &ack, CONNECTIVITY_TIMEOUT); err != nil {
 		return false, err
 	}
 

@@ -41,6 +41,7 @@ type Status int
 const (
 	DISCONNECTED Status = iota
 	CONNECTED
+	RECONNECTED
 )
 
 // Error definitions
@@ -371,7 +372,7 @@ func (s *TankServer) Register(peerInfo serverlib.PeerInfo, settings *serverlib.P
 
 	connections.Lock()
 	connections.m[peerInfo.ClientID] = Connection{
-		status:      DISCONNECTED,
+		status:      DISCONNECTED, // TODO: starts monitoring this connection in monitorConnections(), because its status is disconnected (bug)
 		displayName: peerInfo.DisplayName,
 		address:     peerInfo.Address,
 		rpcAddress:  peerInfo.RPCAddress,
@@ -420,7 +421,6 @@ func (s *TankServer) GetNodes(clientReq serverlib.ClientIDRequest, addrSet *serv
 	var incomingMessage int
 	Logger.UnpackReceive("[GetNodes] received from client", clientReq.B, &incomingMessage)
 	connections.RLock()
-	defer connections.RUnlock()
 
 	if _, ok := connections.m[clientID]; !ok {
 		b := Logger.PrepareSend("[GetNodes] rejected from client", clientID)
@@ -432,7 +432,7 @@ func (s *TankServer) GetNodes(clientReq serverlib.ClientIDRequest, addrSet *serv
 	peerAddresses := make([]serverlib.PeerInfo, 0, len(connections.m)-1)
 
 	for key, connection := range connections.m {
-		if key == clientID || connection.status == DISCONNECTED {
+		if key == clientID || connection.status != CONNECTED {
 			continue
 		}
 
@@ -442,6 +442,15 @@ func (s *TankServer) GetNodes(clientReq serverlib.ClientIDRequest, addrSet *serv
 			ClientID:    key,
 			DisplayName: connection.displayName,
 		})
+	}
+	connections.RUnlock()
+
+	if connections.m[clientID].status == RECONNECTED {
+		connections.Lock()
+		conn := connections.m[clientID]
+		conn.status = CONNECTED
+		connections.m[clientID] = conn
+		connections.Unlock()
 	}
 
 	// TODO : Filter the addresses better for network topology
@@ -470,19 +479,9 @@ func monitorConnections() {
 		connections.Lock()
 		for id, connection := range connections.m {
 			if connection.status == DISCONNECTED {
-				if err := connection.client.Ping(); err != nil {
-					continue
-				}
-
 				if success, _ := connection.client.Recover(); success {
-					//connections.RUnlock() // Do a little dance with locks, because we didn't want to
-					//connections.Lock()    // hog the write lock while waiting for timeouts on RPC calls
-
-					connection.status = CONNECTED
+					connection.status = RECONNECTED
 					connections.m[id] = connection
-
-					//connections.Unlock()
-					//connections.RLock()
 				}
 			}
 		}

@@ -66,10 +66,10 @@ var (
 	localPlayer *Player
 	players     = make(map[uint64]*Player)
 	// Keep a separate list of player IDs around because go maps don't have a stable iteration order
-	playerIds 	[]uint64
-	bullets   	[]*Bullet
-	alive 		= true
-	isBot     	bool
+	playerIds []uint64
+	bullets   []*Bullet
+	alive     = true
+	isBot     bool
 )
 
 func main() {
@@ -191,6 +191,7 @@ var win *pixelgl.Window
 func runBot() {
 	go GenerateMoves()
 	for {
+		// Since this doesn't update bullets, you can't kill the bot!
 		doAcceptUpdates()
 	}
 }
@@ -213,7 +214,9 @@ func run() {
 		doUpdateBullets(dt)
 
 		// Update the local player with local input, if we're alive
-		if alive {doLocalInput(dt)}
+		if alive {
+			doLocalInput(dt)
+		}
 
 		// Accept all waiting events
 		doAcceptUpdates()
@@ -307,19 +310,23 @@ func doLocalInput(dt float64) {
 	localPlayer.Accept(update)
 
 	if win.JustPressed(pixelgl.MouseButtonLeft) {
-		// fire a bullet if the mouse button was pressed
-		offset := pixel.V(math.Cos(localPlayer.Angle), math.Sin(localPlayer.Angle)).Scaled(30)
-		position := localPlayer.Pos.Add(offset)
-
-		// Add the bullet to our list
-		bullets = append(bullets, NewBullet(position, localPlayer.Angle))
-
-		// Send an update about this bullet that was fired
-		RecordUpdates <- clientlib.FireBullet(localPlayer.ID, position, localPlayer.Angle).Timestamp(Clock.GetCurrentTime())
+		FireBullet()
 	}
 
 	// Tell everybody else about it
 	RecordUpdates <- update
+}
+
+func FireBullet() {
+	// fire a bullet if the mouse button was pressed
+	offset := pixel.V(math.Cos(localPlayer.Angle), math.Sin(localPlayer.Angle)).Scaled(30)
+	position := localPlayer.Pos.Add(offset)
+
+	// Add the bullet to our list
+	bullets = append(bullets, NewBullet(position, localPlayer.Angle))
+
+	// Send an update about this bullet that was fired
+	RecordUpdates <- clientlib.FireBullet(localPlayer.ID, position, localPlayer.Angle).Timestamp(Clock.GetCurrentTime())
 }
 
 var imd = imdraw.New(nil)
@@ -344,7 +351,9 @@ func doDraw() {
 	win.Clear(colornames.Whitesmoke)
 
 	// Draw ourselves if we're alive
-	if alive {doDrawLocal()}
+	if alive {
+		doDrawLocal()
+	}
 
 	// draw all the other players
 	for _, id := range playerIds {

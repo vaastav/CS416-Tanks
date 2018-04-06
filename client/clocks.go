@@ -47,11 +47,11 @@ func (c *ClockController) KVClientGet(request clientlib.KVClientGetRequest, resp
 
 	key := request.Key
 	var k uint64
-	KVLogger.UnpackReceive("[KVClientGet] Request received from server", request.B, &k)
+	KVLogger.UnpackReceive("KVClientGet() Request received from server", request.B, &k)
 	KVMap.Lock()
 	defer KVMap.Unlock()
 	value := KVMap.M[key]
-	b := KVLogger.PrepareSend("[KVClientGet] Request executed", value)
+	b := KVLogger.PrepareSend("KVClientGet() Request executed", value)
 	*response = clientlib.KVClientGetResponse{value, b}
 
 	return nil
@@ -62,7 +62,7 @@ func (c *ClockController) KVClientPut(request clientlib.KVClientPutRequest, resp
 	arg := request.Arg
 	var k uint64
 	var ok bool
-	KVLogger.UnpackReceive("[KVClientGet] Request received from server", request.B, &k)
+	KVLogger.UnpackReceive("KVClientGet() Request received from server", request.B, &k)
 	KVMap.Lock()
 	defer KVMap.Unlock()
 	key := arg.Key
@@ -71,11 +71,11 @@ func (c *ClockController) KVClientPut(request clientlib.KVClientPutRequest, resp
 	err := WriteKVPair(key, value)
 	if err != nil {
 		ok = false
-		b := KVLogger.PrepareSend("[KVClientPut] Request failed", ok)
+		b := KVLogger.PrepareSend("KVClientPut() Request failed", ok)
 		*response = clientlib.KVClientPutResponse{ok, b}
 		return err
 	}
-	b := KVLogger.PrepareSend("KVClientPut] Request succeeded", ok)
+	b := KVLogger.PrepareSend("KVClientPut() Request succeeded", ok)
 	*response = clientlib.KVClientPutResponse{ok, b}
 	ok = true
 
@@ -86,17 +86,17 @@ func (c *ClockController) KVClientPut(request clientlib.KVClientPutRequest, resp
 
 func (c *ClockController) TimeRequest(request clientlib.GetTimeRequest, t *clientlib.GetTimeResponse) error {
 	var i int
-	Logger.UnpackReceive("[TimeRequest] command received from server", request.B, &i)
-	b := Logger.PrepareSend("[TimeRequest] command executed", Clock.GetCurrentTime())
+	Logger.UnpackReceive("TimeRequest() command received from server", request.B, &i)
+	b := Logger.PrepareSend("TimeRequest() command executed", Clock.GetCurrentTime())
 	*t = clientlib.GetTimeResponse{Clock.GetCurrentTime(), b}
 	return nil
 }
 
 func (c *ClockController) SetOffset(request clientlib.SetOffsetRequest, response *clientlib.SetOffsetResponse) error {
 	var offset time.Duration
-	Logger.UnpackReceive("[SetOffset] command received from server", request.B, &offset)
+	Logger.UnpackReceive("SetOffset() command received from server", request.B, &offset)
 	Clock.SetOffset(request.Offset)
-	b := Logger.PrepareSend("[SetOffset] command executed", true)
+	b := Logger.PrepareSend("SetOffset() command executed", true)
 	*response = clientlib.SetOffsetResponse{true, b}
 	return nil
 }
@@ -114,10 +114,11 @@ func (c *ClockController) Heartbeat(clientID uint64, ack *bool) error {
 
 func (c *ClockController) Recover(request int, ack *bool) error {
 	peerLock.Lock()
+	log.Println("Recover()")
 
 	for id := range peers {
 		if err := removePeer(id); err != nil {
-			// TODO: log error
+			log.Println("Recover() error removing peer", id)
 		}
 	}
 
