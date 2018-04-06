@@ -106,6 +106,11 @@ func RecordWorker() {
 				continue
 			}
 		case clientlib.POSITION:
+			if !windowCfg.Bounds.Contains(update.Pos) {
+				// ignore positions that are outside the screen
+				continue
+			}
+
 			// Add this player to our records if we haven't heard of them before
 			if records[update.PlayerID] == nil {
 				log.Println("Heard of new player", update.PlayerID)

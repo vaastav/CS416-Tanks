@@ -73,6 +73,13 @@ func (u Update) MoveUp(dt float64) Update {
 	return u
 }
 
+func (u Update) Bound(bounds pixel.Rect) Update {
+	u.Pos.X = pixel.Clamp(u.Pos.X, bounds.Min.X, bounds.Max.X)
+	u.Pos.Y = pixel.Clamp(u.Pos.Y, bounds.Min.Y, bounds.Max.Y)
+
+	return u
+}
+
 func (u Update) Timestamp(time time.Time) Update {
 	u.Time = time
 	// Set a nonce now

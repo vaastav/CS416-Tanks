@@ -331,6 +331,7 @@ func doLocalInput(dt float64) {
 
 	update = update.
 		UpdateAngle(win.MousePosition()).
+		Bound(windowCfg.Bounds).
 		Timestamp(Clock.GetCurrentTime())
 
 	// Update our local player immediately
