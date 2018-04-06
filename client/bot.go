@@ -8,7 +8,8 @@ import (
 const (
 	DirectionChangeInterval = time.Millisecond * 875
 	ShotInterval            = time.Millisecond * 1400
-	BotSpeed                = 165.0 // Higher speed than regular player b/c bot sleeps in between moves
+	BotSpeed                = 100.0 // Higher speed than regular player b/c bot sleeps in between moves
+	TickInterval = time.Second / 60
 )
 
 func GenerateMoves() {
@@ -18,6 +19,8 @@ func GenerateMoves() {
 	var x, y, dt float64
 
 	time.Sleep(time.Second * 3)
+
+	last := time.Now()
 
 	for {
 		// Generate position
@@ -57,14 +60,19 @@ func GenerateMoves() {
 		localPlayer.Accept(update)
 		RecordUpdates <- update
 
-		time.Sleep(time.Millisecond * 10)
+		//time.Sleep(time.Millisecond * 10)
 
 		if time.Since(lastShotFired) > ShotInterval && len(players) >= 1 {
 			FireBullet() // PEW PEW PEW!
 			lastShotFired = Clock.GetCurrentTime()
 		}
 
-		time.Sleep(time.Millisecond * 70) // Don't want to bombard the network with updates
+		dt := time.Now().Sub(last)
+		if dt < TickInterval {
+			time.Sleep(TickInterval - dt)
+		}
+
+		last = time.Now()
 	}
 }
 

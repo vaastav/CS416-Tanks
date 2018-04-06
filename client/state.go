@@ -119,7 +119,7 @@ func RecordWorker() {
 				dt := update.Time.Sub(records[update.PlayerID].Time).Seconds()
 
 				if distance > 2 * clientlib.PlayerSpeed * dt {
-					log.Println("Ignoring bad position from", last, "to", update.Pos, "in", dt)
+					log.Println("Ignoring bad position")
 					continue
 				}
 			}
