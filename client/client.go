@@ -59,6 +59,7 @@ var (
 	KVLogger     *govec.GoLog
 	PeerLogger   *govec.GoLog
 	IsLogUpdates bool
+	UseDinv      bool
 )
 
 var (
@@ -127,13 +128,25 @@ func main() {
 	Logger = govec.InitGoVector(clientName, clientName+"_logfile")
 	KVLogger = govec.InitGoVector(statsName, statsName+"_logfile")
 	PeerLogger = govec.InitGoVector(peersName, peersName+"_logfile")
-	dinvRT.DoFast()
 	PeerLogger.EnableBufferedWrites()
 
 	v := os.Getenv("LOG_UPDATES")
 	IsLogUpdates = true
 	if v == "" {
 		IsLogUpdates = false
+	}
+
+	v2 := os.Getenv("USE_DINV")
+	UseDinv = true
+	if v2 == "" {
+		log.Println("Not using Dinv")
+		UseDinv = false
+	}
+
+	// Needed to make dinv work on windows as this is a function I have added
+	// Comment after generating relevant logs
+	if (UseDinv) {
+		//dinvRT.DoFast()
 	}
 
 	// KV: Setup the key-value store.
@@ -144,14 +157,16 @@ func main() {
 
 	Server = serverlib.NewRPCServerAPI(client)
 	// TODO : Only register if a client ID is not already present
-	NetworkSettings, err = Server.Register(localAddrString, address, rand.Uint64(), displayName, Logger)
+	NetworkSettings, err = Server.Register(localAddrString, address, rand.Uint64(), displayName, Logger, UseDinv)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	dinvRT.Track(clientName, "display_name", display_name)
+	if (UseDinv) {
+		dinvRT.Track(clientName, "display_name", displayName)
+	}
 
-	ack, err := Server.Connect(NetworkSettings.UniqueUserID, Logger)
+	ack, err := Server.Connect(NetworkSettings.UniqueUserID, Logger, UseDinv)
 	if err != nil {
 		log.Fatal(err)
 	}

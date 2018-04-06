@@ -59,7 +59,7 @@ func PeerWorker() {
 }
 
 func getMorePeers() {
-	newPeers, err := Server.GetNodes(NetworkSettings.UniqueUserID, Logger)
+	newPeers, err := Server.GetNodes(NetworkSettings.UniqueUserID, Logger, UseDinv)
 	if err != nil {
 		log.Fatal("Error retrieving more peer addresses from server:", err)
 	}
