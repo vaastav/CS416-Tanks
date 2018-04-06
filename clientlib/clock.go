@@ -28,7 +28,7 @@ type ClientClockRemote struct {
 
 const (
 	TIMEOUT              = 20 * time.Second
-	CONNECTIVITY_TIMEOUT = 2 * time.Second
+	CONNECTIVITY_TIMEOUT = 1 * time.Second
 )
 
 type GetTimeRequest struct {

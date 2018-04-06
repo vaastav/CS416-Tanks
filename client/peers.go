@@ -102,8 +102,8 @@ func newPeer(id uint64, addr string, rpcAddr string) (*PeerRecord, error) {
 	clockClient := clientlib.NewClientClockRemoteAPI(client)
 
 	if err = api.Register(NetworkSettings.UniqueUserID, LocalAddr.String(), RPCAddr.String()); err != nil {
-		err = conn.Close()
-		err = client.Close()
+		conn.Close()
+		client.Close()
 		return nil, err
 	}
 

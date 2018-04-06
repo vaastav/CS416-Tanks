@@ -177,6 +177,7 @@ var win *pixelgl.Window
 func runBot() {
 	go GenerateMoves()
 	for {
+		// Since this doesn't update bullets, you can't kill the bot!
 		doAcceptUpdates()
 	}
 }
@@ -295,19 +296,23 @@ func doLocalInput(dt float64) {
 	localPlayer.Accept(update)
 
 	if win.JustPressed(pixelgl.MouseButtonLeft) {
-		// fire a bullet if the mouse button was pressed
-		offset := pixel.V(math.Cos(localPlayer.Angle), math.Sin(localPlayer.Angle)).Scaled(30)
-		position := localPlayer.Pos.Add(offset)
-
-		// Add the bullet to our list
-		bullets = append(bullets, NewBullet(position, localPlayer.Angle))
-
-		// Send an update about this bullet that was fired
-		RecordUpdates <- clientlib.FireBullet(localPlayer.ID, position, localPlayer.Angle).Timestamp(Clock.GetCurrentTime())
+		FireBullet()
 	}
 
 	// Tell everybody else about it
 	RecordUpdates <- update
+}
+
+func FireBullet() {
+	// fire a bullet if the mouse button was pressed
+	offset := pixel.V(math.Cos(localPlayer.Angle), math.Sin(localPlayer.Angle)).Scaled(30)
+	position := localPlayer.Pos.Add(offset)
+
+	// Add the bullet to our list
+	bullets = append(bullets, NewBullet(position, localPlayer.Angle))
+
+	// Send an update about this bullet that was fired
+	RecordUpdates <- clientlib.FireBullet(localPlayer.ID, position, localPlayer.Angle).Timestamp(Clock.GetCurrentTime())
 }
 
 var imd = imdraw.New(nil)

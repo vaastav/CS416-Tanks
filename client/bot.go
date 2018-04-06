@@ -6,9 +6,9 @@ import (
 )
 
 const (
-	DirectionChangeInterval = time.Millisecond * 850
-	ShotInterval            = time.Millisecond * 800
-	BotSpeed                = 185.0 // Higher speed than regular player b/c bot sleeps in between moves
+	DirectionChangeInterval = time.Millisecond * 875
+	ShotInterval			= time.Millisecond * 1400
+	BotSpeed                = 165.0 // Higher speed than regular player b/c bot sleeps in between moves
 )
 
 func GenerateMoves() {
@@ -16,6 +16,8 @@ func GenerateMoves() {
 	lastShotFired := lastDirChange
 	lastTime := lastDirChange
 	var x, y, dt float64
+
+	time.Sleep(time.Second * 3)
 
 	for {
 		// Generate position
@@ -37,17 +39,31 @@ func GenerateMoves() {
 		}
 
 		// Point shot angle at rand player
-		if time.Since(lastShotFired) > ShotInterval && len(playerIds) > 0 {
-			index := rand.Intn(len(playerIds))
-			id := playerIds[index]
-			update.Angle = players[id].Pos.Sub(update.Pos).Angle()
-			lastShotFired = Clock.GetCurrentTime()
-			// TODO: PEW PEW PEW!
+		if time.Since(lastShotFired) > ShotInterval && len(players) >= 1 {
+			index := rand.Intn(len(players))
+			playerID, count := uint64(0), 0
+			for id := range players {
+				if count == index {
+					playerID = id
+					break
+				}
+				count++
+			}
+			if playerID != 0 {
+				update.Angle = players[playerID].Pos.Sub(update.Pos).Angle()
+			}
 		}
 
 		localPlayer.Accept(update)
-
 		RecordUpdates <- update
+
+		time.Sleep(time.Millisecond * 10)
+
+		if time.Since(lastShotFired) > ShotInterval && len(players) >= 1 {
+			FireBullet() // PEW PEW PEW!
+			lastShotFired = Clock.GetCurrentTime()
+		}
+
 		time.Sleep(time.Millisecond * 70) // Don't want to bombard the network with updates
 	}
 }
