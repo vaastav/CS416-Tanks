@@ -112,6 +112,14 @@ var globalReplicationFactor int = 3
 
 // KV: Server side functions for a distributed key-value store.
 
+func min(a int, b int) int {
+	if a < b {
+		return a
+	} else {
+		return b
+	}
+}
+
 func (s *TankServer) KVGet(request *serverlib.KVGetRequest, response *serverlib.KVGetResponse) error {
 
 	// Get the latest client that stores this key-value pair and is online.
@@ -228,7 +236,7 @@ func (s *TankServer) KVPut(request *serverlib.KVPutRequest, response *serverlib.
 		}
 		// Randomly permute the candidate array and get the required number of
 		// client IDs from the beginning of the array.
-		numRequired := 3 - curReplicas
+		numRequired := min(3 - curReplicas, len(candidates))
 		perm := rand.Perm(len(candidates))
 		for i := 0; i < numRequired; i++ {
 			clients = append(clients, candidates[perm[i]])

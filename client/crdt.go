@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"os"
 )
 
 // Sets up the key-value store by reading any existing key-value pairs stored on
@@ -14,6 +15,10 @@ import (
 func KVStoreSetup() (map[uint64]crdtlib.ValueType, error) {
 
 	M := make(map[uint64]crdtlib.ValueType)
+
+	if _, err := os.Stat(KVDir); os.IsNotExist(err) {
+		os.Mkdir(KVDir, os.ModePerm)
+	}
 
 	files, err := filepath.Glob(path.Join(".", KVDir, "*.kv"))
 	if err != nil {
