@@ -41,6 +41,7 @@ With those functions in mind, the API for communication with the server is as fo
 
 * __success, err ← Register(address, tcpAddress, clientId, displayName, logger)__: Registers the given `clientId`, and associated `displayName` and addresses with the server. The client may then further interact with the server in the calls below.
 * __PeerNetSettings, err ← Connect(clientId, logger)__: Marks the player node associated with `clientId` as connected, allowing its address to be returned to other nodes in calls to `GetNodes()` (defined below). Returns the network settings for the game, including the minimum number of peers that a player node should maintain.
+* __success, err ← Disconnect(clientId, logger, useDinv)__: *TODO*
 * __[]PeerInfo, err ← GetNodes(clientId, logger)__: Returns a set of addresses of player nodes that are currently marked as connected.
 * __err ← NotifyFailure(clientId)__: Marks the player node associated with `clientId` as disconnected, so that it is no longer returned in calls to `GetNodes()`. The server then begins monitoring that node in the event that it reconnects.
 * __value, err ← KVGet(key, clientId, logger)__: *TODO*
@@ -48,33 +49,43 @@ With those functions in mind, the API for communication with the server is as fo
 
 ## Player Node
 
-### Player API
+Each player node is associated with a single player in the game. Each node thus also has an associated application with which a user may view and interact with the game state. Whenever a user moves or shoots, the player node (1) updates the local game state and (2) broadcasts that update to its peers, who will then flood the update to all nodes in the network.
 
-The API for communication with player nodes is as follows:
+To that end, a player node consists of six workers: a peer worker, which ensures that the node maintains the minimum number of connections; a listener worker, which listens for incoming game updates from the node's peers; a record worker, which validates all game updates and pushes valid updates to the graphical interface; an outgoing worker, which listens for input from the node's associated user and broadcasts those updates to the network; a heartbeat worker, which sends heartbeats every 2 seconds to the required peers; and a monitor worker, which monitors the frequency of the heartbeats the node is receiving.
 
-* __err ← Register(clientId, address, tcpAddress)__ : Add `clientId` to the receiving player's peer list, and begin sending heartbeats to `tcpAddress`.
-* __err ← NotifyUpdate(clientId, update)__ : Update the game state with the given `update` and flood the update to the receiving player's peers.
-* __err ← NotifyFailure(clientId, ttl)__ : Mark the player with `clientId` as dead in the game state, decrement `ttl`, and flood the failure to the receiving player's peers, unless `ttl` == 0.
-
-* __time, err ← TimeRequest()__ : ...
-* __err ← SetOffset(offset)__ : ...
-
-* __err ← Heartbeat(clientId)__ : ...
-* __err ← Ping()__ : No-op call used to test the connection between the caller and receiving player node.  
-* __success, err ← Recover()__ : ...
-
-* __value, err ← KVClientGet(key, logger)__ : ...
-* __err ← KVClientPut(key, value, logger)__ : ...
-
-### Node Joins
+*TODO include state diagram*
 
 ### Node Failures
 
-## Stats Collection
+
+
+### Stats Collection
+
+*TODO*
+
+### Player API
+
+Given the speed at which game updates must be propagated from player to player, functions that affect user-visible game state use the User Datagram Protocol (UDP). The API for communication with player nodes is as follows:
+
+* __err ← Register(clientId, address, tcpAddress)__: Notifies the player node to add `clientId` to its peer list and to begin sending heartbeats to `tcpAddress`.
+* __err ← NotifyUpdate(clientId, update)__: Notifies the player node to update its game state with the given `update` and flood that update to its peers.
+* __err ← NotifyFailure(clientId, ttl)__: Notifies the player node to mark the player `clientId` as dead in its game state, and to flood the failure notification to its peers unless `ttl` == 0.
+
+The remaining portion of the player node API uses TCP, as these functions do not have the same requirements for low latency as the functions above. The decision to use a mix of UDP and TCP was made with the intention of reducing the risk of packet loss where possible.
+
+* __time, err ← TimeRequest()__: *TODO*
+* __err ← SetOffset(offset)__: *TODO*
+* __err ← Heartbeat(clientId)__: Player nodes listen for heartbeats from the nodes on which they have called `Register()` (defined above). A player node expects to receive a heartbeat from each monitored peer every 2 seconds.
+* __err ← Ping()__ : No-op call used to test the TCP connection between the caller and callee player nodes.  
+* __success, err ← Recover()__: Resets the state of a reconnected player node, closing any remaining connections and setting its peers list to zero.    
+* __value, err ← KVClientGet(key, logger)__: *TODO*
+* __err ← KVClientPut(key, value, logger)__: *TODO*
 
 # Implementation
 
 ## Azure
+
+The server is hosted on Azure. In addition, a headless player node (i.e. one with no associated application) is hosted on Azure also. This node is our game's bot; it automatically generates moves and fires at other players. It cannot die, so that players are never without opponents.
 
 ## Library Dependencies
 
