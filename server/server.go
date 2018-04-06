@@ -362,9 +362,8 @@ func (s *TankServer) syncClocks() {
 	connections.Unlock()
 }
 
-func (s *TankServer) Register(request serverlib.RegisterRequest, settings *serverlib.PeerSettingsRequest) error {
-	peerInfo := request.Pi
-	log.Println("Register()", peerInfo.ClientID)
+func (s *TankServer) Register(request serverlib.RegisterRequest, settings *serverlib.RegisterResponse) error {
+	log.Println("Register()", request.DisplayName)
 	var incomingMessage string
 	Logger.UnpackReceive("[Register] request received from client", request.B, &incomingMessage)
 	fmt.Println(incomingMessage)
@@ -373,51 +372,49 @@ func (s *TankServer) Register(request serverlib.RegisterRequest, settings *serve
 		dinvRT.Unpack(request.DinvB, &addressString)
 	}
 	displayNames.Lock()
-	_, ok := displayNames.M[peerInfo.DisplayName]
+	_, ok := displayNames.M[request.DisplayName]
 	if ok {
 		displayNames.Unlock()
-		b := Logger.PrepareSend("[Register] request rejected from client", peerInfo.ClientID)
+		b := Logger.PrepareSend("[Register] request rejected from client", request.ClientID)
 		if (UseDinv) {
-			dinvb := dinvRT.Pack(peerInfo.ClientID)
-			*settings = serverlib.PeerSettingsRequest{clientlib.PeerNetSettings{}, b, dinvb}
+			dinvb := dinvRT.Pack(request.ClientID)
+			*settings = serverlib.RegisterResponse{clientlib.PeerNetSettings{}, b, dinvb}
 		} else {
-			*settings = serverlib.PeerSettingsRequest{clientlib.PeerNetSettings{}, b, b}
+			*settings = serverlib.RegisterResponse{clientlib.PeerNetSettings{}, b, b}
 		}
-		return DisplayNameInUseError(peerInfo.DisplayName)
+		return DisplayNameInUseError(request.DisplayName)
 	}
-	displayNames.M[peerInfo.DisplayName] = true
+	displayNames.M[request.DisplayName] = true
 	newSettings := clientlib.PeerNetSettings{
-		UniqueUserID:           peerInfo.ClientID,
-		DisplayName:            peerInfo.DisplayName,
+		UniqueUserID:           request.ClientID,
+		DisplayName:            request.DisplayName,
 	}
 
 	if (UseDinv){
 		dinvRT.Track("server.Register", "displayNames", encodeToString(displayNames.M))
 	}
 	displayNames.Unlock()
-	b := Logger.PrepareSend("[Register] request accepted from client", peerInfo.ClientID)
+	b := Logger.PrepareSend("[Register] request accepted from client", request.ClientID)
 	if (UseDinv) {
-		dinvb := dinvRT.Pack(peerInfo.ClientID)
-		*settings = serverlib.PeerSettingsRequest{newSettings, b, dinvb}
+		dinvb := dinvRT.Pack(request.ClientID)
+		*settings = serverlib.RegisterResponse{newSettings, b, dinvb}
 	} else {
-		*settings = serverlib.PeerSettingsRequest{newSettings, b, b}
+		*settings = serverlib.RegisterResponse{newSettings, b, b}
 	}
 
 	connections.Lock()
-	connections.m[peerInfo.ClientID] = Connection{
-		status:      NOTINGAME, // TODO: starts monitoring this connection in monitorConnections(), because its status is disconnected (bug)
-		displayName: peerInfo.DisplayName,
-		address:     peerInfo.Address,
-		rpcAddress:  peerInfo.RPCAddress,
-		offset:      0,
+	connections.m[request.ClientID] = Connection{
+		status:      NOTINGAME,
+		displayName: request.DisplayName,
 	}
 
 	connections.Unlock()
 	return nil
 }
 
-func (s *TankServer) Connect(clientReq serverlib.ClientIDRequest, response *serverlib.ConnectResponse) error {
-	clientID := clientReq.ClientID
+func (s *TankServer) Connect(clientReq serverlib.ConnectRequest, response *serverlib.ConnectResponse) error {
+	peerInfo := clientReq.Pi
+	clientID := peerInfo.ClientID
 	log.Println("Connect()", clientID)
 	var incomingMessage int
 	var dinvMessage int
@@ -449,8 +446,13 @@ func (s *TankServer) Connect(clientReq serverlib.ClientIDRequest, response *serv
 		}
 		return errors.New("client already connected")
 	}
-	c.status = CONNECTED
-	connections.m[clientID] = c
+	connections.m[peerInfo.ClientID] = Connection{
+		status:      CONNECTED,
+		displayName: peerInfo.DisplayName,
+		address:     peerInfo.Address,
+		rpcAddress:  peerInfo.RPCAddress,
+		offset:      0,
+	}
 	connections.Unlock()
 	b := Logger.PrepareSend("[Connect] Request accepted from client", MinPeerConnections)
 	if (UseDinv) {

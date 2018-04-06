@@ -161,7 +161,7 @@ func main() {
 	// TODO : Only register if a client ID is not already present
 	ID, err := findIDFile(displayName)
 	if err != nil {
-		NetworkSettings, err = Server.Register(localAddrString, address, rand.Uint64(), displayName, Logger, UseDinv)
+		NetworkSettings, err = Server.Register(displayName, rand.Uint64(), Logger, UseDinv)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -176,13 +176,17 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
+	} else {
+		NetworkSettings.UniqueUserID = ID
 	}
 
+	log.Print("ID is")
+	log.Println(ID)
 	if (UseDinv) {
 		dinvRT.Track(clientName, "display_name", displayName)
 	}
 
-	MinimumPeerConnections, err = Server.Connect(ID, Logger, UseDinv)
+	MinimumPeerConnections, err = Server.Connect(localAddrString, address, ID, displayName, Logger, UseDinv)
 	if err != nil {
 		log.Fatal(err)
 	}

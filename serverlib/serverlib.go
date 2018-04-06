@@ -17,8 +17,8 @@ type ServerAPI interface {
 	KVPut(key uint64, value crdtlib.ValueType, logger *govec.GoLog) error
 
 	// -----------------------------------------------------------------------------
-	Register(address string, rpcAddress string, clientID uint64, displayName string, logger *govec.GoLog, useDinv bool) (clientlib.PeerNetSettings, error)
-	Connect(clientID uint64, logger *govec.GoLog, useDinv bool) (int, error)
+	Connect(address string, rpcAddress string, clientID uint64, displayName string, logger *govec.GoLog, useDinv bool) (int, error)
+	Register(displayName string, clientID uint64, logger *govec.GoLog, useDinv bool) (clientlib.PeerNetSettings, error)
 	GetNodes(clientID uint64, logger *govec.GoLog, useDinv bool) ([]PeerInfo, error)
 	Disconnect(clientID uint64, logger *govec.GoLog, useDinv bool) (bool, error)
 	NotifyFailure(clientID uint64) error
@@ -35,8 +35,15 @@ type PeerInfo struct {
 	DisplayName string
 }
 
-type RegisterRequest struct {
+type ConnectRequest struct {
 	Pi PeerInfo
+	B []byte
+	DinvB []byte
+}
+
+type RegisterRequest struct {
+	DisplayName string
+	ClientID uint64
 	B []byte
 	DinvB []byte
 }
@@ -47,7 +54,7 @@ type ClientIDRequest struct {
 	DinvB    []byte
 }
 
-type PeerSettingsRequest struct {
+type RegisterResponse struct {
 	Settings clientlib.PeerNetSettings
 	B        []byte
 	DinvB    []byte
@@ -150,17 +157,16 @@ func (r *RPCServerAPI) KVPut(key uint64, value crdtlib.ValueType, logger *govec.
 
 // -----------------------------------------------------------------------------
 
-func (r *RPCServerAPI) Register(address string, rpcAddress string, clientID uint64, displayName string, logger *govec.GoLog, useDinv bool) (clientlib.PeerNetSettings, error) {
+func (r *RPCServerAPI) Register(displayName string, clientID uint64, logger *govec.GoLog, useDinv bool) (clientlib.PeerNetSettings, error) {
 	var request RegisterRequest
-	b := logger.PrepareSend("[Resgiter] request sent to server", address)
-	pi := PeerInfo{address, rpcAddress, clientID, displayName}
+	b := logger.PrepareSend("[Resgiter] request sent to server", displayName)
 	if (useDinv) {
-		dinvb := dinvRT.Pack(address)
-		request = RegisterRequest{pi, b, dinvb}
+		dinvb := dinvRT.Pack(displayName)
+		request = RegisterRequest{displayName, clientID, b, dinvb}
 	} else {
-		request = RegisterRequest{pi, b, b}
+		request = RegisterRequest{displayName, clientID, b, b}
 	}
-	var settings PeerSettingsRequest
+	var settings RegisterResponse
 	var id uint64
 	var clientID2 uint64
 
@@ -179,17 +185,18 @@ func (r *RPCServerAPI) Register(address string, rpcAddress string, clientID uint
 	return settings.Settings, nil
 }
 
-func (r *RPCServerAPI) Connect(clientID uint64, logger *govec.GoLog, useDinv bool) (int, error) {
+func (r *RPCServerAPI) Connect(address string, rpcAddress string, clientID uint64, displayName string, logger *govec.GoLog, useDinv bool) (int, error) {
 	var response ConnectResponse
 	var minConnections int
 	var id uint64
-	var request ClientIDRequest
+	var request ConnectRequest
+	pi := PeerInfo{address, rpcAddress, clientID, displayName}
 	b := logger.PrepareSend("[Connect] request sent to server", clientID)
 	if (useDinv) {
 		dinvb := dinvRT.Pack(clientID)
-		request = ClientIDRequest{clientID, b, dinvb}
+		request = ConnectRequest{pi, b, dinvb}
 	} else {
-		request = ClientIDRequest{clientID, b, b}
+		request = ConnectRequest{pi, b, b}
 	}
 	if err := r.doApiCall("TankServer.Connect", &request, &response); err != nil {
 		logger.UnpackReceive("[Connect] request rejected by server", response.B, &minConnections)
