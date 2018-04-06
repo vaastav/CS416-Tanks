@@ -219,7 +219,11 @@ func main() {
 	} else {
 		pixelgl.Run(run)
 	}
-	PeerLogger.Flush() // TODO: this won't work for bots; they run until the process is killed :(
+	ack, err := Server.Disconnect(ID, Logger, UseDinv)
+	if !ack {
+		fmt.Println("Failed to disconnect from server")
+	}
+	PeerLogger.Flush() 
 }
 
 var win *pixelgl.Window
@@ -465,7 +469,5 @@ func findIDFile(displayName string) (id uint64, err error) {
 
 	f, err := os.Open(filePath)
 	_, err = fmt.Fscanf(f, "%d\n", &id)
-	log.Print("Here id is ")
-	log.Println(id)
 	return id, nil
 }

@@ -464,6 +464,41 @@ func (s *TankServer) Connect(clientReq serverlib.ClientIDRequest, response *serv
 	return nil
 }
 
+func (s *TankServer) Disconnect(request serverlib.ClientIDRequest, response *serverlib.DisconnectResponse) error {
+	clientID := request.ClientID
+	log.Println("Disconnect()", clientID)
+	var incomingMessage int
+	var dinvMessage int
+	Logger.UnpackReceive("[Disconnect] received from client", request.B, &incomingMessage)
+	if (UseDinv){
+		dinvRT.Unpack(request.DinvB, &dinvMessage)
+	}
+	connections.Lock()
+	c, ok := connections.m[clientID]
+	if !ok {
+		connections.Unlock()
+		b := Logger.PrepareSend("[Disconnect] Request rejected from client", 0)
+		if (UseDinv) {
+			dinvb := dinvRT.Pack(dinvMessage)
+			*response = serverlib.DisconnectResponse{false, b, dinvb}
+		} else {
+			*response = serverlib.DisconnectResponse{false, b, b}
+		}
+		return InvalidClientError(clientID)
+	}
+	c.status = NOTINGAME
+	connections.m[clientID] = c
+	connections.Unlock()
+	b := Logger.PrepareSend("[DisConnect] Request accepted from client", MinPeerConnections)
+	if (UseDinv) {
+		dinvb := dinvRT.Pack(dinvMessage)
+		*response = serverlib.DisconnectResponse{true, b, dinvb}
+	} else {
+		*response = serverlib.DisconnectResponse{true, b, b}
+	}
+	return nil
+}
+
 func (s *TankServer) GetNodes(clientReq serverlib.ClientIDRequest, addrSet *serverlib.GetNodesResponse) error {
 	clientID := clientReq.ClientID
 	log.Println("GetNodes()", clientID)
