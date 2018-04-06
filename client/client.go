@@ -198,6 +198,7 @@ func main() {
 
 	// Run the main thread
 	if isBot {
+		go FlushLogs()
 		runBot()
 	} else {
 		pixelgl.Run(run)
@@ -212,6 +213,13 @@ func runBot() {
 	for {
 		// Since this doesn't update bullets, you can't kill the bot!
 		doAcceptUpdates()
+	}
+}
+
+func FlushLogs() {
+	for {
+		time.Sleep(time.Second * 30)
+		PeerLogger.Flush()
 	}
 }
 
