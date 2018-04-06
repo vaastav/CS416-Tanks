@@ -75,6 +75,10 @@ func (e KeyUnavailableError) Error() string {
 
 // State Variables
 
+const (
+	MinPeerConnections = 2
+)
+
 var connections = struct {
 	sync.RWMutex
 	m map[uint64]Connection
@@ -383,7 +387,6 @@ func (s *TankServer) Register(request serverlib.RegisterRequest, settings *serve
 	}
 	displayNames.M[peerInfo.DisplayName] = true
 	newSettings := clientlib.PeerNetSettings{
-		MinimumPeerConnections: 2,
 		UniqueUserID:           peerInfo.ClientID,
 		DisplayName:            peerInfo.DisplayName,
 	}
@@ -426,38 +429,35 @@ func (s *TankServer) Connect(clientReq serverlib.ClientIDRequest, response *serv
 	c, ok := connections.m[clientID]
 	if !ok {
 		connections.Unlock()
-		ack := false
-		b := Logger.PrepareSend("[Connect] Request rejected from client", ack)
+		b := Logger.PrepareSend("[Connect] Request rejected from client", 0)
 		if (UseDinv) {
 			dinvb := dinvRT.Pack(dinvMessage)
-			*response = serverlib.ConnectResponse{ack, b, dinvb}
+			*response = serverlib.ConnectResponse{0, b, dinvb}
 		} else {
-			*response = serverlib.ConnectResponse{ack, b, b}
+			*response = serverlib.ConnectResponse{0, b, b}
 		}
 		return InvalidClientError(clientID)
 	}
 	if c.status == CONNECTED {
 		connections.Unlock()
-		ack := false
-		b := Logger.PrepareSend("[Connect] Request rejected from client", ack)
+		b := Logger.PrepareSend("[Connect] Request rejected from client", 0)
 		if (UseDinv) {
 			dinvb := dinvRT.Pack(dinvMessage)
-			*response = serverlib.ConnectResponse{ack, b, dinvb}
+			*response = serverlib.ConnectResponse{0, b, dinvb}
 		} else {
-			*response = serverlib.ConnectResponse{ack, b, b}
+			*response = serverlib.ConnectResponse{0, b, b}
 		}
 		return errors.New("client already connected")
 	}
 	c.status = CONNECTED
 	connections.m[clientID] = c
 	connections.Unlock()
-	ack := true
-	b := Logger.PrepareSend("[Connect] Request accepted from client", ack)
+	b := Logger.PrepareSend("[Connect] Request accepted from client", MinPeerConnections)
 	if (UseDinv) {
 		dinvb := dinvRT.Pack(dinvMessage)
-		*response = serverlib.ConnectResponse{ack, b, dinvb}
+		*response = serverlib.ConnectResponse{MinPeerConnections, b, dinvb}
 	} else {
-		*response = serverlib.ConnectResponse{ack, b, b}
+		*response = serverlib.ConnectResponse{MinPeerConnections, b, b}
 	}
 	// Sync clock with the new client
 	go s.syncClocks()

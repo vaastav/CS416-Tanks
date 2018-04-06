@@ -48,7 +48,7 @@ func PeerWorker() {
 	for {
 		peerLock.Lock()
 
-		if len(peers) < NetworkSettings.MinimumPeerConnections {
+		if len(peers) < MinimumPeerConnections {
 			getMorePeers()
 		}
 

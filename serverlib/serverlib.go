@@ -18,7 +18,7 @@ type ServerAPI interface {
 
 	// -----------------------------------------------------------------------------
 	Register(address string, rpcAddress string, clientID uint64, displayName string, logger *govec.GoLog, useDinv bool) (clientlib.PeerNetSettings, error)
-	Connect(clientID uint64, logger *govec.GoLog, useDinv bool) (bool, error)
+	Connect(clientID uint64, logger *govec.GoLog, useDinv bool) (int, error)
 	GetNodes(clientID uint64, logger *govec.GoLog, useDinv bool) ([]PeerInfo, error)
 	NotifyFailure(clientID uint64) error
 }
@@ -59,7 +59,7 @@ type GetNodesResponse struct {
 }
 
 type ConnectResponse struct {
-	Ack bool
+	MinConnections int
 	B   []byte
 	DinvB []byte
 }
@@ -172,9 +172,9 @@ func (r *RPCServerAPI) Register(address string, rpcAddress string, clientID uint
 	return settings.Settings, nil
 }
 
-func (r *RPCServerAPI) Connect(clientID uint64, logger *govec.GoLog, useDinv bool) (bool, error) {
+func (r *RPCServerAPI) Connect(clientID uint64, logger *govec.GoLog, useDinv bool) (int, error) {
 	var response ConnectResponse
-	var ack bool
+	var minConnections int
 	var id uint64
 	var request ClientIDRequest
 	b := logger.PrepareSend("[Connect] request sent to server", clientID)
@@ -185,18 +185,18 @@ func (r *RPCServerAPI) Connect(clientID uint64, logger *govec.GoLog, useDinv boo
 		request = ClientIDRequest{clientID, b, b}
 	}
 	if err := r.doApiCall("TankServer.Connect", &request, &response); err != nil {
-		logger.UnpackReceive("[Connect] request rejected by server", response.B, &ack)
+		logger.UnpackReceive("[Connect] request rejected by server", response.B, &minConnections)
 		if (useDinv) {
 			dinvRT.Unpack(response.DinvB, &id)
 		}
-		return false, err
+		return 0, err
 	}
 
-	logger.UnpackReceive("[Connect] request accepted by server", response.B, &ack)
+	logger.UnpackReceive("[Connect] request accepted by server", response.B, &minConnections)
 	if (useDinv) {
 		dinvRT.Unpack(response.DinvB, &id)
 	}
-	return response.Ack, nil
+	return response.MinConnections, nil
 }
 
 func (r *RPCServerAPI) GetNodes(clientID uint64, logger *govec.GoLog, useDinv bool) ([]PeerInfo, error) {

@@ -7,6 +7,7 @@ import (
 	"../serverlib"
 	"bitbucket.org/bestchai/dinv/dinvRT"
 	"flag"
+	"fmt"
 	"github.com/DistributedClocks/GoVector/govec"
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/imdraw"
@@ -45,6 +46,7 @@ var (
 
 var (
 	NetworkSettings clientlib.PeerNetSettings
+	MinimumPeerConnections int
 	LocalAddr       *net.UDPAddr
 	RPCAddr         *net.TCPAddr
 	UpdateChannel   = make(chan clientlib.Update, 1000)
@@ -157,20 +159,34 @@ func main() {
 
 	Server = serverlib.NewRPCServerAPI(client)
 	// TODO : Only register if a client ID is not already present
-	NetworkSettings, err = Server.Register(localAddrString, address, rand.Uint64(), displayName, Logger, UseDinv)
+	ID, err := findIDFile(displayName)
 	if err != nil {
-		log.Fatal(err)
+		NetworkSettings, err = Server.Register(localAddrString, address, rand.Uint64(), displayName, Logger, UseDinv)
+		if err != nil {
+			log.Fatal(err)
+		}
+		ID = NetworkSettings.UniqueUserID
+
+		f, err := os.Create("./" + displayName + ".ID")
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer f.Close()
+		_, err = f.WriteString(fmt.Sprintf("%d\n", ID))
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	if (UseDinv) {
 		dinvRT.Track(clientName, "display_name", displayName)
 	}
 
-	ack, err := Server.Connect(NetworkSettings.UniqueUserID, Logger, UseDinv)
+	MinimumPeerConnections, err = Server.Connect(ID, Logger, UseDinv)
 	if err != nil {
 		log.Fatal(err)
 	}
-	if !ack {
+	if MinimumPeerConnections == 0 {
 		log.Fatal("Failed to connect to server")
 	}
 
@@ -439,4 +455,17 @@ func loadPicture(path string) (pixel.Picture, error) {
 	}
 
 	return pixel.PictureDataFromImage(img), nil
+}
+
+func findIDFile(displayName string) (id uint64, err error) {
+	filePath := "./" + displayName + ".ID"
+	if _, err = os.Stat(filePath); err != nil {
+		return 0, err
+	}
+
+	f, err := os.Open(filePath)
+	_, err = fmt.Fscanf(f, "%d\n", &id)
+	log.Print("Here id is ")
+	log.Println(id)
+	return id, nil
 }
