@@ -303,7 +303,6 @@ func (*ClientListener) Register(clientID uint64, address string, tcpAddress stri
 	// Don't do anything if you already know this peer
 	peerLock.Lock()
 	if _, ok := peers[clientID]; ok {
-		log.Println("Register() all peers:", peers)
 		peerLock.Unlock()
 		return ExistingPeerError(clientID)
 	}

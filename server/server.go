@@ -41,6 +41,7 @@ type Status int
 const (
 	DISCONNECTED Status = iota
 	CONNECTED
+	RECONNECTED
 )
 
 // Error definitions
@@ -420,7 +421,6 @@ func (s *TankServer) GetNodes(clientReq serverlib.ClientIDRequest, addrSet *serv
 	var incomingMessage int
 	Logger.UnpackReceive("[GetNodes] received from client", clientReq.B, &incomingMessage)
 	connections.RLock()
-	defer connections.RUnlock()
 
 	if _, ok := connections.m[clientID]; !ok {
 		b := Logger.PrepareSend("[GetNodes] rejected from client", clientID)
@@ -432,7 +432,7 @@ func (s *TankServer) GetNodes(clientReq serverlib.ClientIDRequest, addrSet *serv
 	peerAddresses := make([]serverlib.PeerInfo, 0, len(connections.m)-1)
 
 	for key, connection := range connections.m {
-		if key == clientID || connection.status == DISCONNECTED {
+		if key == clientID || connection.status != CONNECTED {
 			continue
 		}
 
@@ -442,6 +442,15 @@ func (s *TankServer) GetNodes(clientReq serverlib.ClientIDRequest, addrSet *serv
 			ClientID:    key,
 			DisplayName: connection.displayName,
 		})
+	}
+	connections.RUnlock()
+
+	if connections.m[clientID].status == RECONNECTED {
+		connections.Lock()
+		conn := connections.m[clientID]
+		conn.status = CONNECTED
+		connections.m[clientID] = conn
+		connections.Unlock()
 	}
 
 	// TODO : Filter the addresses better for network topology
@@ -471,8 +480,7 @@ func monitorConnections() {
 		for id, connection := range connections.m {
 			if connection.status == DISCONNECTED {
 				if success, _ := connection.client.Recover(); success {
-					log.Println("monitorConnections()", id)
-					connection.status = CONNECTED
+					connection.status = RECONNECTED
 					connections.m[id] = connection
 				}
 			}
