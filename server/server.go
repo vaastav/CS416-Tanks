@@ -43,6 +43,7 @@ const (
 	DISCONNECTED Status = iota
 	CONNECTED
 	RECONNECTED
+	NOTINGAME
 )
 
 // Error definitions
@@ -197,7 +198,7 @@ func (s *TankServer) KVPut(request *serverlib.KVPutRequest, response *serverlib.
 	var clients []uint64
 	for _, clientId := range clientsTmp {
 		connection := connections.m[clientId]
-		if connection.status == DISCONNECTED {
+		if connection.status != CONNECTED {
 			continue
 		}
 		clients = append(clients, clientId)
@@ -210,7 +211,7 @@ func (s *TankServer) KVPut(request *serverlib.KVPutRequest, response *serverlib.
 		// clients to store this key-value pair on.
 		var candidates []uint64
 		for clientId, connection := range connections.m {
-			if connection.status == DISCONNECTED {
+			if connection.status != CONNECTED {
 				continue
 			}
 			// Do not choose a client if it already exists in our list.
@@ -299,7 +300,7 @@ func (s *TankServer) syncClocks() {
 	var offsetNum time.Duration = 1
 
 	for key, connection := range connections.m {
-		if connection.status == DISCONNECTED {
+		if connection.status != CONNECTED {
 			continue
 		}
 		client, err := rpc.Dial("tcp", connection.rpcAddress)
@@ -331,7 +332,7 @@ func (s *TankServer) syncClocks() {
 	offsetAverage := offsetTotal / offsetNum
 
 	for key, connection := range connections.m {
-		if connection.status == DISCONNECTED {
+		if connection.status != CONNECTED {
 			continue
 		}
 
@@ -393,7 +394,7 @@ func (s *TankServer) Register(request serverlib.RegisterRequest, settings *serve
 
 	connections.Lock()
 	connections.m[peerInfo.ClientID] = Connection{
-		status:      DISCONNECTED, // TODO: starts monitoring this connection in monitorConnections(), because its status is disconnected (bug)
+		status:      NOTINGAME, // TODO: starts monitoring this connection in monitorConnections(), because its status is disconnected (bug)
 		displayName: peerInfo.DisplayName,
 		address:     peerInfo.Address,
 		rpcAddress:  peerInfo.RPCAddress,
