@@ -1,0 +1,40 @@
+client_jerome {"client_jerome":1}
+Initialization Complete
+client_jerome {"client_jerome":2}
+[Resgiter] request sent to server
+client_jerome {"client_jerome":3, "server":16, "client_vaastav":10}
+[Register] request accepted by server
+client_jerome {"client_jerome":4, "server":16, "client_vaastav":10}
+[Connect] request sent to server
+client_jerome {"client_jerome":5, "server":18, "client_vaastav":10}
+[Connect] request accepted by server
+client_jerome {"client_jerome":6, "server":18, "client_vaastav":10}
+[GetNodes] request sent to server
+client_jerome {"client_vaastav":13, "client_jerome":7, "server":23}
+TimeRequest() command received from server
+client_jerome {"server":23, "client_vaastav":13, "client_jerome":8}
+TimeRequest() command executed
+client_jerome {"server":27, "client_vaastav":15, "client_jerome":9}
+SetOffset() command received from server
+client_jerome {"client_jerome":10, "server":27, "client_vaastav":15}
+SetOffset() command executed
+client_jerome {"client_vaastav":15, "client_jerome":11, "server":30}
+[GetNodes] request accepted by server
+client_jerome {"client_jerome":12, "client_madeleine":6, "server":41, "client_vaastav":19}
+TimeRequest() command received from server
+client_jerome {"server":41, "client_vaastav":19, "client_jerome":13, "client_madeleine":6}
+TimeRequest() command executed
+client_jerome {"client_jerome":14, "client_madeleine":8, "server":47, "client_vaastav":21}
+SetOffset() command received from server
+client_jerome {"client_madeleine":8, "server":47, "client_vaastav":21, "client_jerome":15}
+SetOffset() command executed
+client_jerome {"client_madeleine":10, "server":61, "client_vaastav":23, "client_jerome":16, "client_raunak":6}
+TimeRequest() command received from server
+client_jerome {"client_madeleine":10, "server":61, "client_vaastav":23, "client_jerome":17, "client_raunak":6}
+TimeRequest() command executed
+client_jerome {"client_vaastav":25, "client_jerome":18, "client_raunak":8, "client_madeleine":13, "server":69}
+SetOffset() command received from server
+client_jerome {"server":69, "client_vaastav":25, "client_jerome":19, "client_raunak":8, "client_madeleine":13}
+SetOffset() command executed
+client_jerome {"client_madeleine":13, "server":69, "client_vaastav":25, "client_jerome":20, "client_raunak":8}
+[Disconnect] request sent to server

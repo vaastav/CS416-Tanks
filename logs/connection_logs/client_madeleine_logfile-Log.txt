@@ -1,0 +1,32 @@
+client_madeleine {"client_madeleine":1}
+Initialization Complete
+client_madeleine {"client_madeleine":2}
+[Resgiter] request sent to server
+client_madeleine {"client_madeleine":3, "client_vaastav":16, "server":34, "client_jerome":10}
+[Register] request accepted by server
+client_madeleine {"server":34, "client_jerome":10, "client_madeleine":4, "client_vaastav":16}
+[Connect] request sent to server
+client_madeleine {"client_vaastav":16, "server":36, "client_jerome":10, "client_madeleine":5}
+[Connect] request accepted by server
+client_madeleine {"client_jerome":10, "client_madeleine":6, "client_vaastav":16, "server":36}
+[GetNodes] request sent to server
+client_madeleine {"client_madeleine":7, "client_vaastav":19, "server":43, "client_jerome":13}
+TimeRequest() command received from server
+client_madeleine {"client_jerome":13, "client_madeleine":8, "client_vaastav":19, "server":43}
+TimeRequest() command executed
+client_madeleine {"client_vaastav":21, "server":49, "client_jerome":15, "client_madeleine":9}
+SetOffset() command received from server
+client_madeleine {"client_madeleine":10, "client_vaastav":21, "server":49, "client_jerome":15}
+SetOffset() command executed
+client_madeleine {"client_jerome":15, "client_madeleine":11, "client_vaastav":21, "server":52}
+[GetNodes] request accepted by server
+client_madeleine {"client_jerome":17, "client_madeleine":12, "client_vaastav":23, "server":63, "client_raunak":6}
+TimeRequest() command received from server
+client_madeleine {"client_raunak":6, "client_jerome":17, "client_madeleine":13, "client_vaastav":23, "server":63}
+TimeRequest() command executed
+client_madeleine {"client_raunak":8, "client_jerome":19, "client_madeleine":14, "client_vaastav":25, "server":71}
+SetOffset() command received from server
+client_madeleine {"client_madeleine":15, "client_vaastav":25, "server":71, "client_raunak":8, "client_jerome":19}
+SetOffset() command executed
+client_madeleine {"server":71, "client_raunak":8, "client_jerome":19, "client_madeleine":16, "client_vaastav":25}
+[Disconnect] request sent to server

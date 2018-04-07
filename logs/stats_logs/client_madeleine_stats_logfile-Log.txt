@@ -1,0 +1,10 @@
+client_madeleine_stats {"client_madeleine_stats":1}
+Initialization Complete
+client_madeleine_stats {"client_madeleine_stats":2}
+[KVGet] Sending get key request to server
+client_madeleine_stats {"client_madeleine_stats":3}
+[KVGet] Get request to server errored out
+client_madeleine_stats {"client_madeleine_stats":4}
+[KVPut] Sending request to server
+client_madeleine_stats {"client_madeleine_stats":5}
+[KVPut] Put request to server errored out
