@@ -9,8 +9,6 @@ header-includes:
 geometry: margin=1in
 ---
 
-# Abstract
-
 # Introduction
 
 In recent years, a new genre of video games, often termed as 'battle royale', has become increasingly popular. Games of this genre are, in effect, last-man standing games – the last surviving player wins. Such games involve frequent altercations between players and consequently place heavy demands on how the game state is maintained. The world must appear consistent for all players as it is modified, interactions between players must be resolved fairly, and eliminated players should no longer be able to modify the game state.
@@ -27,7 +25,7 @@ When designing an online real-time multi-player game, there are two common appro
 
 For our purposes, architectures (a) and (b) are both too slow. We have thus elected to use something of a hybrid design. Our system consists of two components: a server and player nodes, where each player node is associated with one player in the game. This is not a client-server architecture, however. Player nodes broadcast their game updates to a subset of all player nodes (their peers) which then broadcast the update to theirs, thereby flooding the update throughout the network. To address the latency issues outlined above with regards to architecture (a), player nodes do not wait for their updates to be broadcast to all other nodes, but instead update their local game state immediately. Such a design decision might come at the cost of consistency of game state across player nodes. But presuming that the emitted updates are valid and would eventually be accepted by all player nodes, any such inconsistency should be temporary (update validation is discussed in greater detail below).
 
-The server does not participate in communication between player nodes. Instead it is responsible only for those functions which are not latency-sensitive or which require consensus. Those functions include peer discovery, player reconnection, and clock synchronization, and are discussed in more detail below.       
+The server does not participate in communication between player nodes. Instead it is responsible only for those functions which are not latency-sensitive or which require consensus. Those functions include peer discovery, player reconnection, clock synchronization, and a key-value store, and are discussed in more detail below.       
 
 ## Server
 
@@ -39,7 +37,7 @@ As discussed above, the communication with the server does not have the same req
 
 * __Clock Synchronization__: Given that our game is a real-time distributed system, with player nodes broadcasting their moves and shots, we need a method by which to order updates and thereby resolve altercations between players. To do so, we use clock synchronization amongst all player nodes, and in particular the Berkeley Algorithm. For the purposes of this algorithm, the server is selected as master. *TODO*  
 
-* __Key-Value Store__: When a player dies or kills another player, the system keeps track of the number of the number of deaths and kills associated with the player. We do so by using a centralized distributed key-value store that replicates key-value pairs on a small number of clients. The key to store these statistics is the client ID of the player, and the value are the number of deaths and kills associated with that player.
+* __Key-Value Store__: Our system tracks the number of kills and deaths associated with each player, where the ID of each player node is associated with a set of statistics. To store and retrieve these statistics, we have used a centralized distributed key-value store, with the data replicated across player nodes. The role of the server in this functionality is akin to the server in the distributed file system of assignment 2. Stats collection and the key-value store is discussed in further detail below.
 
 ### Server API
 
@@ -50,8 +48,8 @@ With those functions in mind, the API for communication with the server is as fo
 * __success, err ← Disconnect(clientId, logger, useDinv)__: *TODO*
 * __[]PeerInfo, err ← GetNodes(clientId, logger)__: Returns a set of addresses of player nodes that are currently marked as connected.
 * __err ← NotifyFailure(clientId)__: Marks the player node associated with `clientId` as disconnected, so that it is no longer returned in calls to `GetNodes()`. The server then begins monitoring that node in the event that it reconnects.
-* __value, err ← KVGet(key, clientId, logger)__: Retrieves the `value` (number of deaths and kills) associated with the given `key` (player) from one of the clients where the key-value pair has been replicated. Note that the `clientId` parameter is redundant since the key in the key-value store is the client ID itself. 
-* __err ← KVPut(key, value, logger)__: Adds the given key-value pair to the key-value store by replicating it across a small number of connected clients. If the key exists already, it updates the value.
+* __value, err ← KVGet(key, clientId, logger)__: Retrieves the player statistics (that is, the number of deaths and kills) associated with player `clientId` from one of the player nodes where the key-value pair has been replicated.
+* __err ← KVPut(key, value, logger)__: Adds the given key-value pair to the store, replicating the data across a subset of connected nodes. If the already exists, the value associated with that key is updated.
 
 ## Player Node
 
@@ -73,16 +71,15 @@ In this context, a 'malicious' player node is one that emits updates that violat
 
 Heartbeats, which are sent using TCP, are used for two-way connection monitoring amongst peers. Which player node initially calls `Register()` (defined below) determines which node among two peers will send heartbeats and which will receive them. One player node attempts to send a heartbeat every 2 seconds. The player node receiving the heartbeats records the time at which each heartbeat is received. Depending on whether the node is sending or receiving heartbeats, if either (1) the sent heartbeat returns with an error or times out, or (2) it has been longer than 2 seconds since the last heartbeat has been received, the node will test the connection. If the test returns with an error or times out, the node is considered disconnected. The failed node is removed from the peers list, as well as its sprite from the game, the server is notified so that it ceases returning the node as a viable peer, and finally, a notification of the node's failure is flooded throughout the network. Player nodes that receive the notification will then also remove the disconnected player from their local game.  
 
-The server monitors player nodes that have been reported as disconnected, regularly testing its connection to the node. In the event that a node is found to have reconnected, the server prompts the reconnected node to clear its peers list. The reconnected node will then behave as if a newly joined node, calling the server to get new peers. In this way our system handles transitory disconnections in addition to outright failures.
+The server monitors player nodes that have been reported as disconnected, regularly testing its connection to the node. In the event that a node is found to have reconnected, the server prompts the reconnected node to clear its peers list. The reconnected node will then behave as if a newly joined node, calling the server to get new peers. In this way our system handles transitory disconnections in addition to outright failures. Note, however, a case not handled by the current implementation: if node A disconnects transitorily and then node B disconnects afterwards, when node A reconnects it will display the player associated with node B in the application despite it being disconnected. This is because node A was disconnected at the time when node B's failure notification was propagated.
 
 ### Stats Collection
 
-In our system, we keep track of the number of deaths a player has suffered and the number of kills that a player has made. We do so by using a centralized distributed key-value store. When a player dies, the server updates the kill and death counts for the relvant players. The store uses a centralized server which processes requests from clients, similar to the distributed file system from assignment 2. The keys in the store are client IDs and the values are a struct containing the number of deaths and the number of kills associated with that particular player. Locally, each client stores a file for each key and stores the value as the contents of this file. For example, to store a key-value pair with key = 5, the filename is `5.kv`.
+Our system tracks game statistics, including the number of deaths a player has suffered and the number of kills that a player has made. If a player is killed, the player that was hit increments their death count while the player that hit them increments their kill count. To do so, we have implemented a centralized distributed key-value store. As mentioned above, the store uses a centralized server to process value retrievals and updates from player nodes, much like the distributed file system in assignment 2. Here, the key in the store is the player ID and the value is a struct containing the player's game statistics.   
 
-When the client starts, it sets up the key-value store by reading any files stored locally and storing them in memory in a map.
-On a `KVGet()` call, the server tries to identify the set of connected clients which store the required key-value pair. If there are no such connected clients, the server just returns a default value of 0 for the the number of deaths and the number of kills. Otherwise, it retrieves the value from one of the connected clients that contains this key-value pair. On the client side, it responds to requests for the server by returning the value corresponding to the specified key. On a `KVPut()` call, if there are not enough connected clients that already have this key-value pair, then the server chooses a small set of connected clients to replicate this pair on. Otherwise, it notifies each connected client that stores this pair to update the value corresponding to this key.
+Locally each player node creates a file for each key and store the value as the contents of that file. For example, to store a key-value pair with key = 5, the filename is `5.kv`. On startup, a player node sets up its local key-value store by reading any local files and storing them in a map. On a call to `KVGet()`, the server identifies the set of connected nodes with the required value pair. If there are no such nodes, the server returns a default value of 0 for deaths and kills respectively to the requesting node. Otherwise, the server retrieves the value from one of the connected player nodes. The node then responds with the value associated with the request key. On a call to `KVPut()`, if there are less than three connected nodes that have stored the key-value pair, the server selects additional nodes on which to replicate the pair. The server also notifies connected nodes storing the pair to update the value.     
 
-Although there is some level of fault tolerance with respect to failing clients, there is one case that is currently not being handled. If the server tries to retrieve a value from a particular client and the client fails while processing that request, the server does not attempt to cancel its request and retrieve the value from another connected client that stores this pair. This can be fixed by adding a timeout mechanism using channels to detect this situation and restart the retrieval process from a different client.
+Ensuring that key-value pairs are stored across a minimum number of player nodes gives our system a degree of fault tolerance. In our current implementation, however, if the server attempts to retrieve a value from a player node and the node fails while processing that request, the server does not attempt to cancel its request and retrieve the value from another connected node that stores this pair. This could be fixed by adding a timeout, using channels to detect this scenario, and attempting to retrieve the value from another node.
 
 ### Player API
 
@@ -99,8 +96,8 @@ The remaining portion of the player node API uses TCP, as these functions do not
 * __err ← Heartbeat(clientId)__: Player nodes listen for heartbeats from the nodes on which they have called `Register()` (defined above). A player node expects to receive a heartbeat from each monitored peer every 2 seconds.
 * __err ← Ping()__ : No-op call used to test the TCP connection between the caller and callee player nodes.  
 * __success, err ← Recover()__: Resets the state of a reconnected player node, closing any remaining connections and setting its peers list to zero.    
-* __value, err ← KVClientGet(key, logger)__: Gets the number of deaths and number of kills associated with player with ID `key`.
-* __err ← KVClientPut(key, value, logger)__: Stores the number of deaths and number of kills associated with player with ID `key`.
+* __value, err ← KVClientGet(key, logger)__: Retrieves the number of deaths and kills associated with the player with ID `key`.
+* __err ← KVClientPut(key, value, logger)__: Stores the number of deaths and kills associated with the player with ID `key`.
 
 # Implementation
 
