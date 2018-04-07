@@ -133,7 +133,7 @@ We tested clock synchronisation again by looking at shiviz diagrams to ensure th
 
 ### Game State Validation - Malicious Clients
 
-Our clients validate updates they receive from other clients. In particular, they only accept updates for the last short period of time. Clients also verify that new positions are within a reasonable bound, and that bullets fired come from near where the player is, and at about the right angle. We tested this by trying some basic malicious behavior, such as updates that teleport a client around the map. These kinds of updates are rejected correctly by the system.
+As described above, our system is designed to reject updates that fall outside of a certain acceptable range of parameters. We tested this by trying some basic malicious behavior, such as updates that teleport a client around the map. These kinds of updates are rejected correctly by the system.
 
 ### Distributed K-V Store
 
@@ -145,7 +145,9 @@ Our clients validate updates they receive from other clients. In particular, the
 
 ## Client Performance
 
-// TODO by Jerome. Mention the profiling part
+Our clients perform reasonably well. They can render 60 frames per second consistently, even when multiple clients are running. In order to identify the bottlenecks in our implementation, we used pprof to trace execution of our clients over a short period. We then inspected this trace to determine if there were any obvious bottlenecks in performance. Below is a rendering of a sample trace. We found that, unsurprisingly, graphics took up the biggest portion of time. This makes sense, especially since the graphics goroutine is pinned to the main thread of the application (due to OS requirements), and so is scheduled more often than other goroutines might be.
+
+![](client-profile.png)
 
 ## Findings
 
