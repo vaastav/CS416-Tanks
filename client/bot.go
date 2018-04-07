@@ -9,7 +9,7 @@ const (
 	DirectionChangeInterval = time.Millisecond * 875
 	ShotInterval            = time.Millisecond * 1400
 	BotSpeed                = 100.0 // Higher speed than regular player b/c bot sleeps in between moves
-	TickInterval = time.Second / 60
+	TickInterval            = time.Second / 60
 )
 
 func GenerateMoves() {

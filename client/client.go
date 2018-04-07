@@ -23,10 +23,10 @@ import (
 	_ "net/http/pprof"
 	"net/rpc"
 	"os"
+	"runtime/pprof"
 	"strconv"
 	"sync"
 	"time"
-	"runtime/pprof"
 )
 
 const (
@@ -45,13 +45,13 @@ var (
 )
 
 var (
-	NetworkSettings clientlib.PeerNetSettings
+	NetworkSettings        clientlib.PeerNetSettings
 	MinimumPeerConnections int
-	LocalAddr       *net.UDPAddr
-	RPCAddr         *net.TCPAddr
-	UpdateChannel   = make(chan clientlib.Update, 1000)
-	Clock           = &clocklib.ClockManager{}
-	KVMap           = struct {
+	LocalAddr              *net.UDPAddr
+	RPCAddr                *net.TCPAddr
+	UpdateChannel          = make(chan clientlib.Update, 1000)
+	Clock                  = &clocklib.ClockManager{}
+	KVMap                  = struct {
 		sync.RWMutex
 		M map[uint64]crdtlib.ValueType
 	}{M: make(map[uint64]crdtlib.ValueType)}
@@ -80,7 +80,7 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 
 	botFlag := flag.Bool("bot", false, "Runs the bot player")
-	cpuprofile := flag.String("cpuprofile", "", "write a cpu profile");
+	cpuprofile := flag.String("cpuprofile", "", "write a cpu profile")
 	flag.Parse()
 	isBot = *botFlag
 
@@ -147,7 +147,7 @@ func main() {
 
 	// Needed to make dinv work on windows as this is a function I have added
 	// Comment after generating relevant logs
-	if (UseDinv) {
+	if UseDinv {
 		//dinvRT.DoFast()
 	}
 
@@ -182,7 +182,7 @@ func main() {
 
 	log.Print("ID is")
 	log.Println(ID)
-	if (UseDinv) {
+	if UseDinv {
 		dinvRT.Track(clientName, "display_name", displayName)
 	}
 
@@ -227,7 +227,7 @@ func main() {
 	if !ack {
 		fmt.Println("Failed to disconnect from server")
 	}
-	PeerLogger.Flush() 
+	PeerLogger.Flush()
 }
 
 var win *pixelgl.Window

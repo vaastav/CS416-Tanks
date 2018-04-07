@@ -3,11 +3,11 @@ package main
 import (
 	"../crdtlib"
 	"io/ioutil"
+	"os"
 	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"os"
 )
 
 // Sets up the key-value store by reading any existing key-value pairs stored on

@@ -2,8 +2,8 @@ package clientlib
 
 import (
 	"github.com/faiface/pixel"
-	"time"
 	"math/rand"
+	"time"
 )
 
 const (
@@ -19,19 +19,19 @@ const (
 type UpdateKind int
 
 type Update struct {
-	Kind     UpdateKind
-	Time     time.Time
-	Nonce    uint64
-	PlayerID uint64
+	Kind        UpdateKind
+	Time        time.Time
+	Nonce       uint64
+	PlayerID    uint64
 	OtherPlayer uint64
-	Pos      pixel.Vec
-	Angle    float64
+	Pos         pixel.Vec
+	Angle       float64
 }
 
 func DeadPlayer(playerID uint64, cause uint64) Update {
 	return Update{
-		Kind:     DEAD,
-		PlayerID: playerID,
+		Kind:        DEAD,
+		PlayerID:    playerID,
 		OtherPlayer: cause,
 	}
 }

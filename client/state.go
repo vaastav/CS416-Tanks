@@ -4,8 +4,8 @@ import (
 	"../clientlib"
 	"github.com/faiface/pixel"
 	"log"
-	"time"
 	"math"
+	"time"
 )
 
 const (
@@ -17,8 +17,8 @@ var (
 )
 
 var (
-	records = make(map[uint64]*PlayerRecord)
-	history []clientlib.Update
+	records    = make(map[uint64]*PlayerRecord)
+	history    []clientlib.Update
 	historyMap = make(map[uint64]interface{})
 )
 
@@ -97,7 +97,7 @@ func RecordWorker() {
 			playerPos := records[update.PlayerID].Pos
 			playerAngle := records[update.PlayerID].Angle
 			posError := playerPos.Sub(update.Pos).Len() / playerPos.Len()
-			angleError := math.Abs(playerAngle - update.Angle) / math.Abs(playerAngle)
+			angleError := math.Abs(playerAngle-update.Angle) / math.Abs(playerAngle)
 
 			if posError > .1 || angleError > .1 {
 				// Ignore shots fired if they're very different from
@@ -123,7 +123,7 @@ func RecordWorker() {
 				distance := update.Pos.Sub(last).Len()
 				dt := update.Time.Sub(records[update.PlayerID].Time).Seconds()
 
-				if distance > 2 * clientlib.PlayerSpeed * dt {
+				if distance > 2*clientlib.PlayerSpeed*dt {
 					log.Println("Ignoring bad position")
 					continue
 				}
