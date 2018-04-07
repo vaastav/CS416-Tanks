@@ -69,15 +69,15 @@ In this context, a 'malicious' player node is one that emits updates that violat
 
 ### Node Failures
 
-Heartbeats, which are sent using TCP, are used for two-way connection monitoring amongst peers. Which player node initially calls `Register()` (defined below) determines which node among two peers will send heartbeats and which will receive them. One player node attempts to send a heartbeat every 2 seconds. The player node receiving the heartbeats records the time at which each heartbeat is received. Depending on whether the node is sending or receiving heartbeats, if either (1) the sent heartbeat returns with an error or times out, or (2) it has been longer than 2 seconds since the last heartbeat has been received, the node will test the connection. If the test returns with an error or times out, the node is considered disconnected. The failed node is removed from the peers list, as well as its sprite from the game, the server is notified so that it ceases returning the node as a viable peer, and finally, a notification of the node's failure is flooded throughout the network. Player nodes that receive the notification will then also remove the disconnected player from their local game.  
+Heartbeats, which are sent using TCP, are used for two-way connection monitoring amongst peers. Which player node initially calls `Register()` (defined below) determines which node among two peers will send heartbeats and which will receive them. One player node attempts to send a heartbeat every 2 seconds. The player node receiving the heartbeats records the time at which each heartbeat is received. Depending on whether the node is sending or receiving heartbeats, if either (1) the sent heartbeat returns with an error or times out, or (2) it has been longer than 2 seconds since the last heartbeat has been received, the node will test the connection. If the test returns with an error or times out, the node is considered disconnected. The failed node is removed from the peers list, as well as its sprite from the game, the server is notified so that it ceases returning the node as a viable peer, and finally, a notification of the node's failure is flooded throughout the network. Player nodes that receive the notification will then also remove the disconnected player from their local game.
 
 The server monitors player nodes that have been reported as disconnected, regularly testing its connection to the node. In the event that a node is found to have reconnected, the server prompts the reconnected node to clear its peers list. The reconnected node will then behave as if a newly joined node, calling the server to get new peers. In this way our system handles transitory disconnections in addition to outright failures. Note, however, a case not handled by the current implementation: if node A disconnects transitorily and then node B disconnects afterwards, when node A reconnects it will display the player associated with node B in the application despite it being disconnected. This is because node A was disconnected at the time when node B's failure notification was propagated.
 
 ### Stats Collection
 
-Our system tracks game statistics, including the number of deaths a player has suffered and the number of kills that a player has made. If a player is killed, the player that was hit increments their death count while the player that hit them increments their kill count. To do so, we have implemented a centralized distributed key-value store. As mentioned above, the store uses a centralized server to process value retrievals and updates from player nodes, much like the distributed file system in assignment 2. Here, the key in the store is the player ID and the value is a struct containing the player's game statistics.   
+Our system tracks game statistics, including the number of deaths a player has suffered and the number of kills that a player has made. If a player is killed, the player that was hit increments their death count while the player that hit them increments their kill count. To do so, we have implemented a centralized distributed key-value store. As mentioned above, the store uses a centralized server to process value retrievals and updates from player nodes, much like the distributed file system in assignment 2. Here, the key in the store is the player ID and the value is a struct containing the player's game statistics.
 
-Locally each player node creates a file for each key and store the value as the contents of that file. For example, to store a key-value pair with key = 5, the filename is `5.kv`. On startup, a player node sets up its local key-value store by reading any local files and storing them in a map. On a call to `KVGet()`, the server identifies the set of connected nodes with the required value pair. If there are no such nodes, the server returns a default value of 0 for deaths and kills respectively to the requesting node. Otherwise, the server retrieves the value from one of the connected player nodes. The node then responds with the value associated with the request key. On a call to `KVPut()`, if there are less than three connected nodes that have stored the key-value pair, the server selects additional nodes on which to replicate the pair. The server also notifies connected nodes storing the pair to update the value.     
+Locally each player node creates a file for each key and store the value as the contents of that file. For example, to store a key-value pair with key = 5, the filename is `5.kv`. On startup, a player node sets up its local key-value store by reading any local files and storing them in a map. On a call to `KVGet()`, the server identifies the set of connected nodes with the required value pair. If there are no such nodes, the server returns a default value of 0 for deaths and kills respectively to the requesting node. Otherwise, the server retrieves the value from one of the connected player nodes. The node then responds with the value associated with the request key. On a call to `KVPut()`, if there are less than three connected nodes that have stored the key-value pair, the server selects additional nodes on which to replicate the pair. The server also notifies connected nodes storing the pair to update the value.
 
 Ensuring that key-value pairs are stored across a minimum number of player nodes gives our system a degree of fault tolerance. In our current implementation, however, if the server attempts to retrieve a value from a player node and the node fails while processing that request, the server does not attempt to cancel its request and retrieve the value from another connected node that stores this pair. This could be fixed by adding a timeout, using channels to detect this scenario, and attempting to retrieve the value from another node.
 
@@ -108,6 +108,7 @@ The server is hosted on Azure. In addition, a headless player node (i.e. one wit
 ## Library Dependencies
 
 Our implementation is written under Go 1.9.2. In addition to the standard library, this project uses the following external libraries:
+
 * Pixel: a 2D game library in Go.
 * GoVector: generates a ShiViz-compatible vector-clock timestamped log of events.
 * DinvRT: Generates a ShiViz-compatible vector-clock timestamped log of events as well as traces of dumps from the system runs which can be used for invariant detection.
@@ -116,15 +117,39 @@ Our implementation is written under Go 1.9.2. In addition to the standard librar
 
 ## Testing
 
-Our system was tested by running player nodes and playing the game manually. In addition, we evaluated logs, in particular those from ShiViz and GoVector, to ensure protocols were functioning as expected. To test player node failures and reconnections, player node processes were either killed or suspended and brought back to the foreground. Of course, such a testing strategy did face certain limitations. In particular, no team members' laptop could handle running any more than four player nodes at a time.  
+### Testing-Overview
+
+Our system was tested by running player nodes and playing the game manually. In addition, we evaluated logs, in particular those from ShiViz and GoVector, to ensure protocols were functioning as expected. To test player node failures and reconnections, player node processes were either killed or suspended and brought back to the foreground. Of course, such a testing strategy did face certain limitations. In particular, no team members' laptop could handle running any more than four player nodes at a time. We also tested our system by running player nodes on separate machines in order to properly test the clock synchornization as well as the overall latency that players faced on the game.
+
+### Registration and Peer Discovery
+
+In addition to manually running our system, this aspect of our system was majorly tested by producing Shiviz diagrams of GoVcetor logs which were generated by instrumenting the RPC calls that the client makes to the server. This allowed us to ensure that all the initial setup protocol of our system worked correctly.
+
+### Clock Synchronisation
+
+We tested clock synchronisation again by looking at shiviz diagrams to ensure that the Clock Synchronisation protocol was working correctly. To actually test the algorithm, we used timestamps from clocks which were synchronised and including them in our game update messages between the peers. This allowed us to reject old updates that were in the network and only apply the new updates. We ran our system with nodes on multiple machines and it all ran smoothly without any flickering of players which we had triaged to clients applying old updates. This confirmed our beliefs that for all practical purposes, clock synchronisation worked correctly.
+
+### Peer to Peer API
+
+### Game State Validation - Malicious Clients
+
+### Distributed K-V Store
 
 ## GoVector
-
-*TODO*
 
 ## ShiViz
 
 ## Dinv
+
+## Client Performance
+
+// TODO by Jerome. Mention the profiling part
+
+## Findings
+
+* While making the video game, we found it was really hard to achieve full consistency without sacrificing the performance of the game and introducing extra latency. So, we decided to sacrifice consistency in order to achieve low latency and better performance on the game.
+
+* Handling player disconnections via consensus also was something that we looked into but decided not to move forward with as it was introducing latency that adversely affected the performance and the game state. So, we decided to handle disconnections by removing the player from the game who had disconnected by informing the server of the disconnection and letting the server propogate the disconnection to other nodes.
 
 # Limitations
 
