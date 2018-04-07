@@ -39,7 +39,7 @@ As discussed above, the communication with the server does not have the same req
 
 * __Clock Synchronization__: Given that our game is a real-time distributed system, with player nodes broadcasting their moves and shots, we need a method by which to order updates and thereby resolve altercations between players. To do so, we use clock synchronization amongst all player nodes, and in particular the Berkeley Algorithm. For the purposes of this algorithm, the server is selected as master. *TODO*  
 
-* __Key-Value Something Something__: *TODO*
+* __Key-Value Store__: When a player dies or kills another player, the system keeps track of the number of the number of deaths and kills associated with the player. We do so by using a centralized distributed key-value store that replicates key-value pairs on a small number of clients. The key to store these statistics is the client ID of the player, and the value are the number of deaths and kills associated with that player.
 
 ### Server API
 
@@ -50,8 +50,8 @@ With those functions in mind, the API for communication with the server is as fo
 * __success, err ← Disconnect(clientId, logger, useDinv)__: *TODO*
 * __[]PeerInfo, err ← GetNodes(clientId, logger)__: Returns a set of addresses of player nodes that are currently marked as connected.
 * __err ← NotifyFailure(clientId)__: Marks the player node associated with `clientId` as disconnected, so that it is no longer returned in calls to `GetNodes()`. The server then begins monitoring that node in the event that it reconnects.
-* __value, err ← KVGet(key, clientId, logger)__: *TODO*
-* __err ← KVPut(key, value, logger)__: *TODO*
+* __value, err ← KVGet(key, clientId, logger)__: Retrieves the `value` (number of deaths and kills) associated with the given `key` (player) from one of the clients where the key-value pair has been replicated. Note that the `clientId` parameter is redundant since the key in the key-value store is the client ID itself. 
+* __err ← KVPut(key, value, logger)__: Adds the given key-value pair to the key-value store by replicating it across a small number of connected clients. If the key exists already, it updates the value.
 
 ## Player Node
 
@@ -77,7 +77,12 @@ The server monitors player nodes that have been reported as disconnected, regula
 
 ### Stats Collection
 
-*TODO*
+In our system, we keep track of the number of deaths a player has suffered and the number of kills that a player has made. We do so by using a centralized distributed key-value store. When a player dies, the server updates the kill and death counts for the relvant players. The store uses a centralized server which processes requests from clients, similar to the distributed file system from assignment 2. The keys in the store are client IDs and the values are a struct containing the number of deaths and the number of kills associated with that particular player. Locally, each client stores a file for each key and stores the value as the contents of this file. For example, to store a key-value pair with key = 5, the filename is `5.kv`.
+
+When the client starts, it sets up the key-value store by reading any files stored locally and storing them in memory in a map.
+On a `KVGet()` call, the server tries to identify the set of connected clients which store the required key-value pair. If there are no such connected clients, the server just returns a default value of 0 for the the number of deaths and the number of kills. Otherwise, it retrieves the value from one of the connected clients that contains this key-value pair. On the client side, it responds to requests for the server by returning the value corresponding to the specified key. On a `KVPut()` call, if there are not enough connected clients that already have this key-value pair, then the server chooses a small set of connected clients to replicate this pair on. Otherwise, it notifies each connected client that stores this pair to update the value corresponding to this key.
+
+Although there is some level of fault tolerance with respect to failing clients, there is one case that is currently not being handled. If the server tries to retrieve a value from a particular client and the client fails while processing that request, the server does not attempt to cancel its request and retrieve the value from another connected client that stores this pair. This can be fixed by adding a timeout mechanism using channels to detect this situation and restart the retrieval process from a different client.
 
 ### Player API
 
@@ -94,8 +99,8 @@ The remaining portion of the player node API uses TCP, as these functions do not
 * __err ← Heartbeat(clientId)__: Player nodes listen for heartbeats from the nodes on which they have called `Register()` (defined above). A player node expects to receive a heartbeat from each monitored peer every 2 seconds.
 * __err ← Ping()__ : No-op call used to test the TCP connection between the caller and callee player nodes.  
 * __success, err ← Recover()__: Resets the state of a reconnected player node, closing any remaining connections and setting its peers list to zero.    
-* __value, err ← KVClientGet(key, logger)__: *TODO*
-* __err ← KVClientPut(key, value, logger)__: *TODO*
+* __value, err ← KVClientGet(key, logger)__: Gets the number of deaths and number of kills associated with player with ID `key`.
+* __err ← KVClientPut(key, value, logger)__: Stores the number of deaths and number of kills associated with player with ID `key`.
 
 # Implementation
 
