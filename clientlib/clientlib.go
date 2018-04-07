@@ -7,8 +7,6 @@ import (
 )
 
 type PeerNetSettings struct {
-	MinimumPeerConnections int
-
 	UniqueUserID uint64
 
 	DisplayName string

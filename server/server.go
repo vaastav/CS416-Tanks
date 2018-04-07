@@ -75,6 +75,10 @@ func (e KeyUnavailableError) Error() string {
 
 // State Variables
 
+const (
+	MinPeerConnections = 2
+)
+
 var connections = struct {
 	sync.RWMutex
 	m map[uint64]Connection
@@ -236,7 +240,7 @@ func (s *TankServer) KVPut(request *serverlib.KVPutRequest, response *serverlib.
 		}
 		// Randomly permute the candidate array and get the required number of
 		// client IDs from the beginning of the array.
-		numRequired := min(3 - curReplicas, len(candidates))
+		numRequired := min(3-curReplicas, len(candidates))
 		perm := rand.Perm(len(candidates))
 		for i := 0; i < numRequired; i++ {
 			clients = append(clients, candidates[perm[i]])
@@ -358,109 +362,142 @@ func (s *TankServer) syncClocks() {
 	connections.Unlock()
 }
 
-func (s *TankServer) Register(request serverlib.RegisterRequest, settings *serverlib.PeerSettingsRequest) error {
-	peerInfo := request.Pi
-	log.Println("Register()", peerInfo.ClientID)
+func (s *TankServer) Register(request serverlib.RegisterRequest, settings *serverlib.RegisterResponse) error {
+	log.Println("Register()", request.DisplayName)
 	var incomingMessage string
 	Logger.UnpackReceive("[Register] request received from client", request.B, &incomingMessage)
 	fmt.Println(incomingMessage)
 	var addressString string
-	if(UseDinv) {
+	if UseDinv {
 		dinvRT.Unpack(request.DinvB, &addressString)
 	}
 	displayNames.Lock()
-	_, ok := displayNames.M[peerInfo.DisplayName]
+	_, ok := displayNames.M[request.DisplayName]
 	if ok {
 		displayNames.Unlock()
-		b := Logger.PrepareSend("[Register] request rejected from client", peerInfo.ClientID)
-		if (UseDinv) {
-			dinvb := dinvRT.Pack(peerInfo.ClientID)
-			*settings = serverlib.PeerSettingsRequest{clientlib.PeerNetSettings{}, b, dinvb}
+		b := Logger.PrepareSend("[Register] request rejected from client", request.ClientID)
+		if UseDinv {
+			dinvb := dinvRT.Pack(request.ClientID)
+			*settings = serverlib.RegisterResponse{clientlib.PeerNetSettings{}, b, dinvb}
 		} else {
-			*settings = serverlib.PeerSettingsRequest{clientlib.PeerNetSettings{}, b, b}
+			*settings = serverlib.RegisterResponse{clientlib.PeerNetSettings{}, b, b}
 		}
-		return DisplayNameInUseError(peerInfo.DisplayName)
+		return DisplayNameInUseError(request.DisplayName)
 	}
-	displayNames.M[peerInfo.DisplayName] = true
+	displayNames.M[request.DisplayName] = true
 	newSettings := clientlib.PeerNetSettings{
-		MinimumPeerConnections: 2,
-		UniqueUserID:           peerInfo.ClientID,
-		DisplayName:            peerInfo.DisplayName,
+		UniqueUserID: request.ClientID,
+		DisplayName:  request.DisplayName,
 	}
 
-	if (UseDinv){
+	if UseDinv {
 		dinvRT.Track("server.Register", "displayNames", encodeToString(displayNames.M))
 	}
 	displayNames.Unlock()
-	b := Logger.PrepareSend("[Register] request accepted from client", peerInfo.ClientID)
-	if (UseDinv) {
-		dinvb := dinvRT.Pack(peerInfo.ClientID)
-		*settings = serverlib.PeerSettingsRequest{newSettings, b, dinvb}
+	b := Logger.PrepareSend("[Register] request accepted from client", request.ClientID)
+	if UseDinv {
+		dinvb := dinvRT.Pack(request.ClientID)
+		*settings = serverlib.RegisterResponse{newSettings, b, dinvb}
 	} else {
-		*settings = serverlib.PeerSettingsRequest{newSettings, b, b}
+		*settings = serverlib.RegisterResponse{newSettings, b, b}
 	}
 
 	connections.Lock()
-	connections.m[peerInfo.ClientID] = Connection{
-		status:      NOTINGAME, // TODO: starts monitoring this connection in monitorConnections(), because its status is disconnected (bug)
-		displayName: peerInfo.DisplayName,
-		address:     peerInfo.Address,
-		rpcAddress:  peerInfo.RPCAddress,
-		offset:      0,
+	connections.m[request.ClientID] = Connection{
+		status:      NOTINGAME,
+		displayName: request.DisplayName,
 	}
 
 	connections.Unlock()
 	return nil
 }
 
-func (s *TankServer) Connect(clientReq serverlib.ClientIDRequest, response *serverlib.ConnectResponse) error {
-	clientID := clientReq.ClientID
+func (s *TankServer) Connect(clientReq serverlib.ConnectRequest, response *serverlib.ConnectResponse) error {
+	peerInfo := clientReq.Pi
+	clientID := peerInfo.ClientID
 	log.Println("Connect()", clientID)
 	var incomingMessage int
 	var dinvMessage int
 	Logger.UnpackReceive("[Connect] received from client", clientReq.B, &incomingMessage)
-	if (UseDinv){
+	if UseDinv {
 		dinvRT.Unpack(clientReq.DinvB, &dinvMessage)
 	}
 	connections.Lock()
 	c, ok := connections.m[clientID]
 	if !ok {
 		connections.Unlock()
-		ack := false
-		b := Logger.PrepareSend("[Connect] Request rejected from client", ack)
-		if (UseDinv) {
+		b := Logger.PrepareSend("[Connect] Request rejected from client", 0)
+		if UseDinv {
 			dinvb := dinvRT.Pack(dinvMessage)
-			*response = serverlib.ConnectResponse{ack, b, dinvb}
+			*response = serverlib.ConnectResponse{0, b, dinvb}
 		} else {
-			*response = serverlib.ConnectResponse{ack, b, b}
+			*response = serverlib.ConnectResponse{0, b, b}
 		}
 		return InvalidClientError(clientID)
 	}
 	if c.status == CONNECTED {
 		connections.Unlock()
-		ack := false
-		b := Logger.PrepareSend("[Connect] Request rejected from client", ack)
-		if (UseDinv) {
+		b := Logger.PrepareSend("[Connect] Request rejected from client", 0)
+		if UseDinv {
 			dinvb := dinvRT.Pack(dinvMessage)
-			*response = serverlib.ConnectResponse{ack, b, dinvb}
+			*response = serverlib.ConnectResponse{0, b, dinvb}
 		} else {
-			*response = serverlib.ConnectResponse{ack, b, b}
+			*response = serverlib.ConnectResponse{0, b, b}
 		}
 		return errors.New("client already connected")
 	}
-	c.status = CONNECTED
-	connections.m[clientID] = c
+	connections.m[peerInfo.ClientID] = Connection{
+		status:      CONNECTED,
+		displayName: peerInfo.DisplayName,
+		address:     peerInfo.Address,
+		rpcAddress:  peerInfo.RPCAddress,
+		offset:      0,
+	}
 	connections.Unlock()
-	ack := true
-	b := Logger.PrepareSend("[Connect] Request accepted from client", ack)
-	if (UseDinv) {
+	b := Logger.PrepareSend("[Connect] Request accepted from client", MinPeerConnections)
+	if UseDinv {
 		dinvb := dinvRT.Pack(dinvMessage)
-		*response = serverlib.ConnectResponse{ack, b, dinvb}
+		*response = serverlib.ConnectResponse{MinPeerConnections, b, dinvb}
 	} else {
-		*response = serverlib.ConnectResponse{ack, b, b}
+		*response = serverlib.ConnectResponse{MinPeerConnections, b, b}
 	}
 	// Sync clock with the new client
 	go s.syncClocks()
+	return nil
+}
+
+func (s *TankServer) Disconnect(request serverlib.ClientIDRequest, response *serverlib.DisconnectResponse) error {
+	clientID := request.ClientID
+	log.Println("Disconnect()", clientID)
+	var incomingMessage int
+	var dinvMessage int
+	Logger.UnpackReceive("[Disconnect] received from client", request.B, &incomingMessage)
+	if UseDinv {
+		dinvRT.Unpack(request.DinvB, &dinvMessage)
+	}
+	connections.Lock()
+	c, ok := connections.m[clientID]
+	if !ok {
+		connections.Unlock()
+		b := Logger.PrepareSend("[Disconnect] Request rejected from client", 0)
+		if UseDinv {
+			dinvb := dinvRT.Pack(dinvMessage)
+			*response = serverlib.DisconnectResponse{false, b, dinvb}
+		} else {
+			*response = serverlib.DisconnectResponse{false, b, b}
+		}
+		return InvalidClientError(clientID)
+	}
+	c.status = NOTINGAME
+	connections.m[clientID] = c
+	connections.Unlock()
+	b := Logger.PrepareSend("[DisConnect] Request accepted from client", MinPeerConnections)
+	if UseDinv {
+		dinvb := dinvRT.Pack(dinvMessage)
+		*response = serverlib.DisconnectResponse{true, b, dinvb}
+	} else {
+		*response = serverlib.DisconnectResponse{true, b, b}
+	}
 	return nil
 }
 
@@ -470,14 +507,14 @@ func (s *TankServer) GetNodes(clientReq serverlib.ClientIDRequest, addrSet *serv
 	var incomingMessage int
 	var dinvMessage int
 	Logger.UnpackReceive("[GetNodes] received from client", clientReq.B, &incomingMessage)
-	if (UseDinv) {
+	if UseDinv {
 		dinvRT.Unpack(clientReq.DinvB, &dinvMessage)
 	}
 	connections.RLock()
 
 	if _, ok := connections.m[clientID]; !ok {
 		b := Logger.PrepareSend("[GetNodes] rejected from client", clientID)
-		if (UseDinv) {
+		if UseDinv {
 			dinvb := dinvRT.Pack(dinvMessage)
 			*addrSet = serverlib.GetNodesResponse{nil, b, dinvb}
 		} else {
@@ -513,7 +550,7 @@ func (s *TankServer) GetNodes(clientReq serverlib.ClientIDRequest, addrSet *serv
 
 	// TODO : Filter the addresses better for network topology
 	b := Logger.PrepareSend("[GetNodes] accepted from client", clientID)
-	if (UseDinv) {
+	if UseDinv {
 		dinvb := dinvRT.Pack(dinvMessage)
 		*addrSet = serverlib.GetNodesResponse{peerAddresses, b, dinvb}
 	} else {
@@ -577,7 +614,7 @@ func main() {
 
 	// Needed to make dinv work on windows as this is a function I have added
 	// Comment after generating relevant logs
-	if (UseDinv) {
+	if UseDinv {
 		//dinvRT.DoFast()
 	}
 

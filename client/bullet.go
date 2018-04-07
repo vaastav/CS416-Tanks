@@ -10,18 +10,18 @@ const (
 )
 
 type Bullet struct {
-	sprite *pixel.Sprite
+	sprite   *pixel.Sprite
 	PlayerID uint64
-	Pos    pixel.Vec
-	Angle  float64
+	Pos      pixel.Vec
+	Angle    float64
 }
 
 func NewBullet(playerID uint64, pos pixel.Vec, angle float64) *Bullet {
 	return &Bullet{
 		PlayerID: playerID,
-		Pos:    pos,
-		Angle:  angle,
-		sprite: pixel.NewSprite(bulletPic, bulletPic.Bounds()),
+		Pos:      pos,
+		Angle:    angle,
+		sprite:   pixel.NewSprite(bulletPic, bulletPic.Bounds()),
 	}
 }
 

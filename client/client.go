@@ -7,6 +7,7 @@ import (
 	"../serverlib"
 	"bitbucket.org/bestchai/dinv/dinvRT"
 	"flag"
+	"fmt"
 	"github.com/DistributedClocks/GoVector/govec"
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/imdraw"
@@ -22,10 +23,10 @@ import (
 	_ "net/http/pprof"
 	"net/rpc"
 	"os"
+	"runtime/pprof"
 	"strconv"
 	"sync"
 	"time"
-	"runtime/pprof"
 )
 
 const (
@@ -44,12 +45,13 @@ var (
 )
 
 var (
-	NetworkSettings clientlib.PeerNetSettings
-	LocalAddr       *net.UDPAddr
-	RPCAddr         *net.TCPAddr
-	UpdateChannel   = make(chan clientlib.Update, 1000)
-	Clock           = &clocklib.ClockManager{}
-	KVMap           = struct {
+	NetworkSettings        clientlib.PeerNetSettings
+	MinimumPeerConnections int
+	LocalAddr              *net.UDPAddr
+	RPCAddr                *net.TCPAddr
+	UpdateChannel          = make(chan clientlib.Update, 1000)
+	Clock                  = &clocklib.ClockManager{}
+	KVMap                  = struct {
 		sync.RWMutex
 		M map[uint64]crdtlib.ValueType
 	}{M: make(map[uint64]crdtlib.ValueType)}
@@ -78,7 +80,7 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 
 	botFlag := flag.Bool("bot", false, "Runs the bot player")
-	cpuprofile := flag.String("cpuprofile", "", "write a cpu profile");
+	cpuprofile := flag.String("cpuprofile", "", "write a cpu profile")
 	flag.Parse()
 	isBot = *botFlag
 
@@ -145,7 +147,7 @@ func main() {
 
 	// Needed to make dinv work on windows as this is a function I have added
 	// Comment after generating relevant logs
-	if (UseDinv) {
+	if UseDinv {
 		//dinvRT.DoFast()
 	}
 
@@ -157,20 +159,38 @@ func main() {
 
 	Server = serverlib.NewRPCServerAPI(client)
 	// TODO : Only register if a client ID is not already present
-	NetworkSettings, err = Server.Register(localAddrString, address, rand.Uint64(), displayName, Logger, UseDinv)
+	ID, err := findIDFile(displayName)
 	if err != nil {
-		log.Fatal(err)
+		NetworkSettings, err = Server.Register(displayName, rand.Uint64(), Logger, UseDinv)
+		if err != nil {
+			log.Fatal(err)
+		}
+		ID = NetworkSettings.UniqueUserID
+
+		f, err := os.Create("./" + displayName + ".ID")
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer f.Close()
+		_, err = f.WriteString(fmt.Sprintf("%d\n", ID))
+		if err != nil {
+			log.Fatal(err)
+		}
+	} else {
+		NetworkSettings.UniqueUserID = ID
 	}
 
-	if (UseDinv) {
+	log.Print("ID is")
+	log.Println(ID)
+	if UseDinv {
 		dinvRT.Track(clientName, "display_name", displayName)
 	}
 
-	ack, err := Server.Connect(NetworkSettings.UniqueUserID, Logger, UseDinv)
+	MinimumPeerConnections, err = Server.Connect(localAddrString, address, ID, displayName, Logger, UseDinv)
 	if err != nil {
 		log.Fatal(err)
 	}
-	if !ack {
+	if MinimumPeerConnections == 0 {
 		log.Fatal("Failed to connect to server")
 	}
 
@@ -203,7 +223,11 @@ func main() {
 	} else {
 		pixelgl.Run(run)
 	}
-	PeerLogger.Flush() // TODO: this won't work for bots; they run until the process is killed :(
+	ack, err := Server.Disconnect(ID, Logger, UseDinv)
+	if !ack {
+		fmt.Println("Failed to disconnect from server")
+	}
+	PeerLogger.Flush()
 }
 
 var win *pixelgl.Window
@@ -439,4 +463,15 @@ func loadPicture(path string) (pixel.Picture, error) {
 	}
 
 	return pixel.PictureDataFromImage(img), nil
+}
+
+func findIDFile(displayName string) (id uint64, err error) {
+	filePath := "./" + displayName + ".ID"
+	if _, err = os.Stat(filePath); err != nil {
+		return 0, err
+	}
+
+	f, err := os.Open(filePath)
+	_, err = fmt.Fscanf(f, "%d\n", &id)
+	return id, nil
 }
