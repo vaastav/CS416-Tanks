@@ -35,7 +35,7 @@ As discussed above, the communication with the server does not have the same req
 
 * __Player Reconnection__: When a player node disconnects, the server is notified of that failure. It then (1) stops returning the failed node's address in peer discovery and (2) begins monitoring that node in case it reconnects. In the event that the node reconnects, the server can then resume returning its address to other nodes. Node failure is discussed in more detail below.
 
-* __Clock Synchronization__: Given that our game is a real-time distributed system, with player nodes broadcasting their moves and shots, we need a method by which to order updates and thereby resolve altercations between players. To do so, we use clock synchronization amongst all player nodes, and in particular the Berkeley Algorithm. For the purposes of this algorithm, the server is selected as master. Every time a new player connects to the server, the server requests all of its connected clients to return their actual time. After adjusting for the RTT delay, the server calculates the raw offsets of each client and then calculates the average time. After this the server calculates the relative offsets for each client (relative to the average) and asks each of them to set their clock offsets accordingly. 
+* __Clock Synchronization__: Given that our game is a real-time distributed system, with player nodes broadcasting their moves and shots, we need a method by which to order updates and thereby resolve altercations between players. To do so, we use clock synchronization amongst all player nodes, and in particular the Berkeley Algorithm. For the purposes of this algorithm, the server is selected as master. Every time a new player connects to the server, the server requests all of its connected clients to return their actual time. After adjusting for the RTT delay, the server calculates the raw offsets of each client and then calculates the average time. After this the server calculates the relative offsets for each client (relative to the average) and asks each of them to set their clock offsets accordingly.
 
 * __Key-Value Store__: Our system tracks the number of kills and deaths associated with each player, where the ID of each player node is associated with a set of statistics. To store and retrieve these statistics, we have used a centralized distributed key-value store, with the data replicated across player nodes. The role of the server in this functionality is akin to the server in the distributed file system of assignment 2. Stats collection and the key-value store is discussed in further detail below.
 
@@ -110,7 +110,7 @@ The server is hosted on Azure. In addition, a headless player node (i.e. one wit
 Our implementation is written under Go 1.9.2. In addition to the standard library, this project uses the following external libraries:
 * Pixel: a 2D game library in Go.
 * GoVector: generates a ShiViz-compatible vector-clock timestamped log of events.
-* DinvRT: Generates a ShiViz-compatible vector-clock timestamped log of events as well as traces of dumps from the system runs which can be used for invariant detection. 
+* DinvRT: Generates a ShiViz-compatible vector-clock timestamped log of events as well as traces of dumps from the system runs which can be used for invariant detection.
 
 # Evaluation
 
@@ -126,7 +126,13 @@ Our system was tested by running player nodes and playing the game manually. In 
 
 ## Dinv
 
-# Limitations and Future Improvements
+# Limitations
+
+Some shortcomings of our system have been discussed in the sections above (see sections on node failures and stats collection). Other limitations come out of assumptions made in our initial proposal. Those include:
+* That a player node can always reach the server. Otherwise, we have no way of supporting peer discovery.
+* That there will be no network partitions.
+* That there will be only one game session at any time.
+* That the number of players that can join a game will be no more than 20. This limitation is not in fact encoded in our system; presumedly our system could handle more than 20 nodes. However, we do not think that the graphical interface could reasonably accommodate so many sprites and still allow for interesting gameplay. Indeed, for reasons of graphics alone there should likely be no more than 8 players at a time.
 
 # Allocation of Work
 
