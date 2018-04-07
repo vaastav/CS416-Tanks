@@ -55,9 +55,9 @@ With those functions in mind, the API for communication with the server is as fo
 
 Each player node is associated with a single player in the game. Each node thus also has an associated application with which a user may view and interact with the game state. Whenever a user moves or shoots, the player node updates the local game state and broadcasts that update to its peers, who will then flood the update to all nodes in the network. In addition, player nodes monitor peers to ensure they have not disconnected, and notifies its remaining peers if one does.
 
-To that end, a player node consists of six workers: a peer worker, which ensures that the node maintains the minimum number of connections; a listener worker, which listens for incoming game updates from the node's peers; a record worker, which validates all game updates and pushes valid updates to the graphical interface; an outgoing worker, which listens for input from the node's associated user and broadcasts those updates to the network; a heartbeat worker, which sends heartbeats every 2 seconds to the required peers; and a monitor worker, which monitors the frequency of the heartbeats the node is receiving.
+To that end, a player node consists of six workers, illustrated in the figure below: a peer worker, which ensures that the node maintains the minimum number of connections; a listener worker, which listens for incoming game updates from the node's peers; a draw worker, which pushes valid updates to the graphical interface; an outgoing worker, which listens for input from the node's associated user and broadcasts those updates to the network; a heartbeat worker, which sends heartbeats every 2 seconds to the required peers; and a monitor worker, which monitors the frequency of the heartbeats the node is receiving.
 
-![](client_states.png)
+![Player Node States](client_states.png)
 
 ### Update Validation
 
@@ -111,7 +111,7 @@ Our implementation is written under Go 1.9.2. In addition to the standard librar
 
 * Pixel: a 2D game library in Go.
 * GoVector: generates a ShiViz-compatible vector-clock timestamped log of events.
-* DinvRT: Generates a ShiViz-compatible vector-clock timestamped log of events as well as traces of dumps from the system runs which can be used for invariant detection.
+* DinvRT: generates a ShiViz-compatible vector-clock timestamped log of events as well as traces of dumps from the system runs which can be used for invariant detection.
 
 # Evaluation
 
