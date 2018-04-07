@@ -137,6 +137,8 @@ As described above, our system is designed to reject updates that fall outside o
 
 ### Distributed K-V Store
 
+We manually tested this aspect of our system by playing a game with multiple clients, and printing out the statistics in each client to standard output. Additionally, we simulated disconnected clients and in the event of no connected replica of a key-value pair, the server returned a default value of 0 as expected.
+
 ## GoVector
 
 In the server node, we have 2 different GoVector loggers. They are for the following:
