@@ -1,0 +1,8 @@
+client_jerome_stats {"client_jerome_stats":1}
+Initialization Complete
+client_jerome_stats {"client_jerome_stats":2}
+[KVGet] Sending get key request to server
+client_jerome_stats {"client_jerome_stats":3}
+[KVGet] Get request to server errored out
+client_jerome_stats {"client_jerome_stats":4}
+[KVPut] Sending request to server

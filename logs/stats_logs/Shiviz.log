@@ -1,0 +1,57 @@
+(?<host>\S*) (?<clock>{.*})\n(?<event>.*)
+
+
+client_jerome_stats {"client_jerome_stats":1}
+Initialization Complete
+client_jerome_stats {"client_jerome_stats":2}
+[KVGet] Sending get key request to server
+client_jerome_stats {"client_jerome_stats":3}
+[KVGet] Get request to server errored out
+client_jerome_stats {"client_jerome_stats":4}
+[KVPut] Sending request to server
+client_madeleine_stats {"client_madeleine_stats":1}
+Initialization Complete
+client_madeleine_stats {"client_madeleine_stats":2}
+[KVGet] Sending get key request to server
+client_madeleine_stats {"client_madeleine_stats":3}
+[KVGet] Get request to server errored out
+client_madeleine_stats {"client_madeleine_stats":4}
+[KVPut] Sending request to server
+client_madeleine_stats {"client_madeleine_stats":5}
+[KVPut] Put request to server errored out
+client_raunak_stats {"client_raunak_stats":1}
+Initialization Complete
+client_raunak_stats {"client_raunak_stats":2}
+[KVGet] Sending get key request to server
+client_raunak_stats {"client_raunak_stats":3}
+[KVGet] Sending get key request to server
+client_raunak_stats {"client_raunak_stats":4}
+[KVGet] Get request to server errored out
+client_raunak_stats {"client_raunak_stats":5}
+[KVPut] Sending request to server
+client_raunak_stats {"client_raunak_stats":6}
+[KVGet] Sending get key request to server
+client_vaastav_stats {"client_vaastav_stats":1}
+Initialization Complete
+client_vaastav_stats {"client_vaastav_stats":2}
+[KVGet] Sending get key request to server
+client_vaastav_stats {"client_vaastav_stats":3}
+[KVGet] Get request to server errored out
+client_vaastav_stats {"client_vaastav_stats":4}
+[KVPut] Sending request to server
+client_vaastav_stats {"client_vaastav_stats":5}
+[KVPut] Put request to server errored out
+server {"server":1}
+Initialization Complete
+server {"server":2, "client_vaastav_stats":2}
+[KVGet] Request received from client
+server {"server":3, "client_vaastav_stats":2}
+[KVGet] Request from client failed
+server {"client_vaastav_stats":2, "client_madeleine_stats":2, "server":4}
+[KVGet] Request received from client
+server {"server":5, "client_vaastav_stats":2, "client_madeleine_stats":2}
+[KVGet] Request from client failed
+server {"server":6, "client_vaastav_stats":2, "client_madeleine_stats":2, "client_raunak_stats":2}
+[KVGet] Request received from client
+server {"server":7, "client_vaastav_stats":2, "client_madeleine_stats":2, "client_raunak_stats":2}
+[KVGet] Request from client failed

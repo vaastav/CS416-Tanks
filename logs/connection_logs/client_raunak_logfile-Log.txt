@@ -1,0 +1,24 @@
+client_raunak {"client_raunak":1}
+Initialization Complete
+client_raunak {"client_raunak":2}
+[Resgiter] request sent to server
+client_raunak {"client_raunak":3, "client_vaastav":21, "client_madeleine":10, "server":54, "client_jerome":15}
+[Register] request accepted by server
+client_raunak {"client_raunak":4, "client_vaastav":21, "client_madeleine":10, "server":54, "client_jerome":15}
+[Connect] request sent to server
+client_raunak {"client_raunak":5, "client_vaastav":21, "client_madeleine":10, "server":56, "client_jerome":15}
+[Connect] request accepted by server
+client_raunak {"client_vaastav":21, "client_madeleine":10, "server":56, "client_jerome":15, "client_raunak":6}
+[GetNodes] request sent to server
+client_raunak {"client_vaastav":23, "client_madeleine":13, "server":65, "client_jerome":17, "client_raunak":7}
+TimeRequest() command received from server
+client_raunak {"client_jerome":17, "client_raunak":8, "client_vaastav":23, "client_madeleine":13, "server":65}
+TimeRequest() command executed
+client_raunak {"client_jerome":19, "client_raunak":9, "client_vaastav":25, "client_madeleine":15, "server":73}
+SetOffset() command received from server
+client_raunak {"client_jerome":19, "client_raunak":10, "client_vaastav":25, "client_madeleine":15, "server":73}
+SetOffset() command executed
+client_raunak {"client_jerome":19, "client_raunak":11, "client_vaastav":25, "client_madeleine":15, "server":76}
+[GetNodes] request accepted by server
+client_raunak {"client_vaastav":25, "client_madeleine":15, "server":76, "client_jerome":19, "client_raunak":12}
+[Disconnect] request sent to server
