@@ -133,6 +133,8 @@ We tested clock synchronisation again by looking at shiviz diagrams to ensure th
 
 ### Game State Validation - Malicious Clients
 
+Our clients validate updates they receive from other clients. In particular, they only accept updates for the last short period of time. Clients also verify that new positions are within a reasonable bound, and that bullets fired come from near where the player is, and at about the right angle. We tested this by trying some basic malicious behavior, such as updates that teleport a client around the map. These kinds of updates are rejected correctly by the system.
+
 ### Distributed K-V Store
 
 ## GoVector
