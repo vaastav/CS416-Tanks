@@ -111,7 +111,11 @@ Our implementation is written under Go 1.9.2. In addition to the standard librar
 * Pixel: a 2D game library in Go.
 * GoVector: generates a ShiViz-compatible vector-clock timestamped log of events.
 
-## Testing and Evaluation
+# Evaluation
+
+## Testing
+
+Our system was tested by running player nodes and playing the game manually. In addition, we evaluated logs, in particular those from ShiViz and GoVector, to ensure protocols were functioning as expected. To test player node failures and reconnections, player node processes were either killed or suspended and brought back to the foreground. Of course, such a testing strategy did face certain limitations. In particular, no team members' laptop could handle running any more than four player nodes at a time.  
 
 ## GoVector
 
