@@ -57,7 +57,7 @@ Each player node is associated with a single player in the game. Each node thus 
 
 To that end, a player node consists of six workers: a peer worker, which ensures that the node maintains the minimum number of connections; a listener worker, which listens for incoming game updates from the node's peers; a record worker, which validates all game updates and pushes valid updates to the graphical interface; an outgoing worker, which listens for input from the node's associated user and broadcasts those updates to the network; a heartbeat worker, which sends heartbeats every 2 seconds to the required peers; and a monitor worker, which monitors the frequency of the heartbeats the node is receiving.
 
-*TODO include state diagram*
+![](client_states.png)
 
 ### Update Validation
 
