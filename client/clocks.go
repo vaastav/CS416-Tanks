@@ -162,7 +162,14 @@ func ClockWorker(serverAddr string, ready chan error) {
 	// dial server and send our ID
 	var idBytes [8]byte
 	binary.BigEndian.PutUint64(idBytes[:], NetworkSettings.UniqueUserID)
-	conn.Write(idBytes[:])
+	n, err := conn.Write(idBytes[:])
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if n != 8 {
+		log.Fatal("Failed to write clientID")
+	}
 
 	log.Println("Clock worker connected")
 
