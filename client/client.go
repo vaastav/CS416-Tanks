@@ -185,11 +185,13 @@ func main() {
 		dinvRT.Track(clientName, "display_name", displayName)
 	}
 
-	// Start the clock worker now
-	go ClockWorker(serverAddr)
+	ready := make(chan error)
 
-	// HACK sleep half a second to await the clock worker connecting
-	time.Sleep(2 * time.Second)
+	// Start the clock worker now
+	go ClockWorker(serverAddr, ready)
+
+	// Await the clock worker starting
+	_ = <-ready
 
 	MinimumPeerConnections, err = Server.Connect(localAddrString, address, ID, displayName, Logger, UseDinv)
 	if err != nil {

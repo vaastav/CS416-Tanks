@@ -135,7 +135,7 @@ func (c *ClockController) Ping(request int, ack *bool) error {
 
 // -----------------------------------------------------------------------------
 
-func ClockWorker(serverAddr string) {
+func ClockWorker(serverAddr string, ready chan error) {
 	awaitAddr, err := net.ResolveTCPAddr("tcp", serverAddr)
 	if err != nil {
 		log.Fatal(err)
@@ -165,6 +165,8 @@ func ClockWorker(serverAddr string) {
 	conn.Write(idBytes[:])
 
 	log.Println("Clock worker connected")
+
+	ready <- nil
 
 	// then start serving RPC on it
 	rpc.ServeConn(conn)
