@@ -520,6 +520,9 @@ func (s *TankServer) GetNodes(clientReq serverlib.ClientIDRequest, addrSet *serv
 		} else {
 			*addrSet = serverlib.GetNodesResponse{nil, b, b}
 		}
+
+		connections.RUnlock()
+
 		return InvalidClientError(clientID)
 	}
 
