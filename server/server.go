@@ -24,6 +24,7 @@ import (
 	"os"
 	"sync"
 	"time"
+	"encoding/binary"
 )
 
 type TankServer int
@@ -32,6 +33,7 @@ type Connection struct {
 	status      Status
 	displayName string
 	address     string
+	rpcClient   *rpc.Client
 	rpcAddress  string
 	client      *clientlib.ClientClockRemote
 	offset      time.Duration
@@ -81,8 +83,8 @@ const (
 
 var connections = struct {
 	sync.RWMutex
-	m map[uint64]Connection
-}{m: make(map[uint64]Connection)}
+	m map[uint64]*Connection
+}{m: make(map[uint64]*Connection)}
 
 var displayNames = struct {
 	sync.RWMutex
@@ -169,14 +171,14 @@ func (s *TankServer) KVGet(request *serverlib.KVGetRequest, response *serverlib.
 	// If this key-value pair is stored by another client, retrieve it using an
 	// RPC and send it to the calling client.
 	connection := connections.m[latestOnline]
-	client, err := rpc.Dial("tcp", connection.rpcAddress)
-	if err != nil {
+	if connection.rpcClient == nil {
 		// TODO: Better failure handling
 		b := StatsLogger.PrepareSend("[KVGet] Request from client failed", reply)
 		*response = serverlib.KVGetResponse{reply, b}
-		log.Fatal(err)
+		log.Fatal("Client not connected")
 	}
-	clockClient := clientlib.NewClientClockRemoteAPI(client)
+
+	clockClient := clientlib.NewClientClockRemoteAPI(connection.rpcClient)
 	value, err := clockClient.KVClientGet(key, StatsLogger)
 	if err != nil {
 		// TODO: Better failure handling
@@ -250,17 +252,16 @@ func (s *TankServer) KVPut(request *serverlib.KVPutRequest, response *serverlib.
 	// Send an RPC to each client to store it.
 	for _, clientId := range clients {
 		connection := connections.m[clientId]
-		client, err := rpc.Dial("tcp", connection.rpcAddress)
-		if err != nil {
+		if connection.rpcClient == nil {
 			// TODO: Better failure handling
 			var reply crdtlib.PutReply
 			reply.Ok = false
 			b := StatsLogger.PrepareSend("[KVPut] request from client failed", true)
 			*response = serverlib.KVPutResponse{reply, b}
-			log.Fatal(err)
+			log.Fatal("client not connected")
 		}
-		clockClient := clientlib.NewClientClockRemoteAPI(client)
-		err = clockClient.KVClientPut(key, value, StatsLogger)
+		clockClient := clientlib.NewClientClockRemoteAPI(connection.rpcClient)
+		err := clockClient.KVClientPut(key, value, StatsLogger)
 		if err != nil {
 			// TODO: Better failure handling
 			var reply crdtlib.PutReply
@@ -301,7 +302,9 @@ func encodeToString(v interface{}) (s string) {
 
 func (s *TankServer) syncClocks() {
 	Logger.LogLocalEvent("Syncing Clocks")
+
 	connections.Lock()
+
 	if len(connections.m) == 0 {
 		connections.Unlock()
 		return
@@ -315,16 +318,16 @@ func (s *TankServer) syncClocks() {
 		if connection.status != CONNECTED {
 			continue
 		}
-		client, err := rpc.Dial("tcp", connection.rpcAddress)
-		if err != nil {
+
+		if connection.rpcClient == nil {
 			// TODO : Better failure handling
 			// Probably wanna mark the client DISCONNECTED
-			log.Fatal("syncClocks() Failed to dial TCP address:", err)
+			log.Fatal("syncClocks() Client", key, "not connected")
 		}
 
 		before := Clock.GetCurrentTime()
 
-		clockClient := clientlib.NewClientClockRemoteAPI(client)
+		clockClient := clientlib.NewClientClockRemoteAPI(connection.rpcClient)
 		connection.client = clockClient
 		connections.m[key] = connection
 
@@ -357,8 +360,10 @@ func (s *TankServer) syncClocks() {
 			log.Fatal(err)
 		}
 	}
+
 	Logger.LogLocalEvent("Setting local clock offset")
 	Clock.SetOffset(Clock.GetOffset() + offsetAverage)
+
 	connections.Unlock()
 }
 
@@ -403,7 +408,7 @@ func (s *TankServer) Register(request serverlib.RegisterRequest, settings *serve
 	}
 
 	connections.Lock()
-	connections.m[request.ClientID] = Connection{
+	connections.m[request.ClientID] = &Connection{
 		status:      NOTINGAME,
 		displayName: request.DisplayName,
 	}
@@ -423,6 +428,7 @@ func (s *TankServer) Connect(clientReq serverlib.ConnectRequest, response *serve
 		dinvRT.Unpack(clientReq.DinvB, &dinvMessage)
 	}
 	connections.Lock()
+
 	c, ok := connections.m[clientID]
 	if !ok {
 		connections.Unlock()
@@ -433,8 +439,12 @@ func (s *TankServer) Connect(clientReq serverlib.ConnectRequest, response *serve
 		} else {
 			*response = serverlib.ConnectResponse{0, b, b}
 		}
+
+		connections.Unlock()
+
 		return InvalidClientError(clientID)
 	}
+
 	if c.status == CONNECTED {
 		connections.Unlock()
 		b := Logger.PrepareSend("[Connect] Request rejected from client", 0)
@@ -444,16 +454,22 @@ func (s *TankServer) Connect(clientReq serverlib.ConnectRequest, response *serve
 		} else {
 			*response = serverlib.ConnectResponse{0, b, b}
 		}
+
+		connections.Unlock()
+
 		return errors.New("client already connected")
 	}
-	connections.m[peerInfo.ClientID] = Connection{
+	connections.m[peerInfo.ClientID] = &Connection{
 		status:      CONNECTED,
 		displayName: peerInfo.DisplayName,
 		address:     peerInfo.Address,
 		rpcAddress:  peerInfo.RPCAddress,
+		rpcClient:   c.rpcClient,
 		offset:      0,
 	}
+
 	connections.Unlock()
+
 	b := Logger.PrepareSend("[Connect] Request accepted from client", MinPeerConnections)
 	if UseDinv {
 		dinvb := dinvRT.Pack(dinvMessage)
@@ -461,8 +477,10 @@ func (s *TankServer) Connect(clientReq serverlib.ConnectRequest, response *serve
 	} else {
 		*response = serverlib.ConnectResponse{MinPeerConnections, b, b}
 	}
+
 	// Sync clock with the new client
 	go s.syncClocks()
+
 	return nil
 }
 
@@ -592,6 +610,46 @@ func monitorConnections() {
 	}
 }
 
+func awaitClientConnections(addr *net.TCPAddr) {
+	inbound, err := net.ListenTCP("tcp", addr)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for {
+		conn, err := inbound.Accept()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// read clientID
+		var idBytes [8]byte
+		n, err := conn.Read(idBytes[:])
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		if n != 8 {
+			log.Fatal("didn't read enough bytes")
+		}
+
+		clientId := binary.BigEndian.Uint64(idBytes[:])
+
+		connections.Lock()
+
+		connection := connections.m[clientId]
+		if connection == nil {
+			log.Fatal("client not connected")
+		}
+
+		log.Println("Connected to new client", clientId)
+
+		connection.rpcClient = rpc.NewClient(conn)
+
+		connections.Unlock()
+	}
+}
+
 func main() {
 	rand.Seed(time.Now().UnixNano())
 
@@ -608,6 +666,11 @@ func main() {
 	if err != nil {
 		log.Fatal("main() Failed to listen on TCP address:", err)
 	}
+
+	awaitAddr := serverAddr
+	awaitAddr.Port += 10
+
+	go awaitClientConnections(awaitAddr)
 
 	v2 := os.Getenv("USE_DINV")
 	UseDinv = true

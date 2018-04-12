@@ -116,7 +116,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	go ClockWorker()
 
 	client, err := rpc.Dial("tcp", serverAddr)
 	if err != nil {
@@ -185,6 +184,12 @@ func main() {
 	if UseDinv {
 		dinvRT.Track(clientName, "display_name", displayName)
 	}
+
+	// Start the clock worker now
+	go ClockWorker(serverAddr)
+
+	// HACK sleep half a second to await the clock worker connecting
+	time.Sleep(2 * time.Second)
 
 	MinimumPeerConnections, err = Server.Connect(localAddrString, address, ID, displayName, Logger, UseDinv)
 	if err != nil {

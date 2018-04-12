@@ -11,6 +11,7 @@ import (
 	"path"
 	"strconv"
 	"time"
+	"encoding/binary"
 )
 
 type ClockController int
@@ -134,7 +135,19 @@ func (c *ClockController) Ping(request int, ack *bool) error {
 
 // -----------------------------------------------------------------------------
 
-func ClockWorker() {
+func ClockWorker(serverAddr string) {
+	awaitAddr, err := net.ResolveTCPAddr("tcp", serverAddr)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	awaitAddr.Port += 10
+
+	conn, err := net.DialTCP("tcp", nil, awaitAddr)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	inbound, err := net.ListenTCP("tcp", RPCAddr)
 	if err != nil {
 		log.Fatal(err)
@@ -142,5 +155,19 @@ func ClockWorker() {
 
 	server := new(ClockController)
 	rpc.Register(server)
-	rpc.Accept(inbound)
+
+	// start our inbound listener for other clients
+	go rpc.Accept(inbound)
+
+	// dial server and send our ID
+	var idBytes [8]byte
+	binary.BigEndian.PutUint64(idBytes[:], NetworkSettings.UniqueUserID)
+	conn.Write(idBytes[:])
+
+	log.Println("Clock worker connected")
+
+	// then start serving RPC on it
+	rpc.ServeConn(conn)
+
+	log.Println("Clock worker died")
 }
