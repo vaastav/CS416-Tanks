@@ -220,6 +220,8 @@ func HeartbeatMonitorWorker(clientID uint64) {
 				peerLock.Unlock()
 				return
 			}
+
+			peers[clientID].Api.Register(localPlayer.ID, LocalAddr.String(), RPCAddr.String())
 			peers[clientID].LastHeartbeat = Clock.GetCurrentTime()
 			peerLock.Unlock()
 			continue
@@ -304,7 +306,9 @@ func (*ClientListener) Register(clientID uint64, address string, tcpAddress stri
 	peerLock.Lock()
 	if _, ok := peers[clientID]; ok {
 		peerLock.Unlock()
-		return ExistingPeerError(clientID)
+
+		// We already have this peer
+		return nil
 	}
 	peerLock.Unlock()
 
