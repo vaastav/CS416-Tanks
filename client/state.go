@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	TimeDelta = -300 * time.Millisecond
+	TimeDelta = -1000 * time.Millisecond
 )
 
 var (
