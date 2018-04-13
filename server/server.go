@@ -37,6 +37,7 @@ type Connection struct {
 	rpcAddress  string
 	client      *clientlib.ClientClockRemote
 	offset      time.Duration
+	partner     serverlib.PeerInfo
 }
 
 type Status int
@@ -459,6 +460,21 @@ func (s *TankServer) Connect(clientReq serverlib.ConnectRequest, response *serve
 
 		return errors.New("client already connected")
 	}
+
+	// find a partner node
+	var partner serverlib.PeerInfo
+
+	for id, otherC := range connections.m {
+		if id != clientID && otherC.status == CONNECTED {
+			partner.Address = otherC.address
+			partner.RPCAddress = otherC.rpcAddress
+			partner.ClientID = id
+			partner.DisplayName = otherC.displayName
+
+			break
+		}
+	}
+
 	connections.m[peerInfo.ClientID] = &Connection{
 		status:      CONNECTED,
 		displayName: peerInfo.DisplayName,
@@ -466,6 +482,7 @@ func (s *TankServer) Connect(clientReq serverlib.ConnectRequest, response *serve
 		rpcAddress:  peerInfo.RPCAddress,
 		rpcClient:   c.rpcClient,
 		offset:      0,
+		partner:     partner,
 	}
 
 	connections.Unlock()
@@ -528,7 +545,7 @@ func (s *TankServer) GetNodes(clientReq serverlib.ClientIDRequest, addrSet *serv
 	if UseDinv {
 		dinvRT.Unpack(clientReq.DinvB, &dinvMessage)
 	}
-	connections.RLock()
+	connections.Lock()
 
 	if _, ok := connections.m[clientID]; !ok {
 		b := Logger.PrepareSend("[GetNodes] rejected from client", clientID)
@@ -539,27 +556,39 @@ func (s *TankServer) GetNodes(clientReq serverlib.ClientIDRequest, addrSet *serv
 			*addrSet = serverlib.GetNodesResponse{nil, b, b}
 		}
 
-		connections.RUnlock()
+		connections.Unlock()
 
 		return InvalidClientError(clientID)
 	}
 
-	// TODO: Maybe don't return ALL peers...
-	peerAddresses := make([]serverlib.PeerInfo, 0, len(connections.m)-1)
+	var peerAddresses []serverlib.PeerInfo
 
-	for key, connection := range connections.m {
-		if key == clientID || connection.status != CONNECTED {
-			continue
+	// DISCONNECTED is the zero value, so we can use it to test for non-existent clients
+	if connections.m[connections.m[clientID].partner.ClientID] == nil ||
+		connections.m[connections.m[clientID].partner.ClientID].status == DISCONNECTED {
+		// try to find a partner now
+		for id, c := range connections.m {
+			if id != clientID && c.status == CONNECTED {
+				// found a partner
+				connections.m[clientID].partner = serverlib.PeerInfo{
+					Address: c.address,
+					RPCAddress: c.rpcAddress,
+					ClientID: id,
+					DisplayName: c.displayName,
+				}
+
+				break
+			}
 		}
-
-		peerAddresses = append(peerAddresses, serverlib.PeerInfo{
-			Address:     connection.address,
-			RPCAddress:  connection.rpcAddress,
-			ClientID:    key,
-			DisplayName: connection.displayName,
-		})
 	}
-	connections.RUnlock()
+
+	// If our partner is connected, then produce it as a peer
+	if connections.m[connections.m[clientID].partner.ClientID] != nil &&
+		connections.m[connections.m[clientID].partner.ClientID].status == CONNECTED {
+		peerAddresses = append(peerAddresses, connections.m[clientID].partner)
+	}
+
+	connections.Unlock()
 
 	if connections.m[clientID].status == RECONNECTED {
 		connections.Lock()
@@ -569,7 +598,6 @@ func (s *TankServer) GetNodes(clientReq serverlib.ClientIDRequest, addrSet *serv
 		connections.Unlock()
 	}
 
-	// TODO : Filter the addresses better for network topology
 	b := Logger.PrepareSend("[GetNodes] accepted from client", clientID)
 	if UseDinv {
 		dinvb := dinvRT.Pack(dinvMessage)
