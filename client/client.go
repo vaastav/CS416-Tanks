@@ -102,7 +102,8 @@ func main() {
 	displayName := flag.Arg(2)
 
   // Update the stats directory name.
-  KVDir = displayName + "-" + "stats-directory"
+  KVDir = displayName + "-stats-directory"
+  fmt.Println("KVDir: " + KVDir)
 
 	var err error
 	LocalAddr, err = net.ResolveUDPAddr("udp", localAddrString)
