@@ -91,7 +91,7 @@ func (a *ClientAPIRemote) NotifyFailure(clientID uint64, ttl int) error {
 }
 
 func (a *ClientAPIRemote) Register(clientID uint64, address string, tcpAddress string) error {
-	return a.doAPICall(ClientMessage{
+	return a.doAPICallAsync(ClientMessage{
 		Kind:       REGISTER,
 		ClientID:   clientID,
 		Address:    address,
