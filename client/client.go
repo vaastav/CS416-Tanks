@@ -393,8 +393,8 @@ func doLocalInput(dt float64) {
 		update = update.MoveUp(dt)
 	}
 
-	if win.Pressed(pixelgl.KeySpace) {
-		// move to the mouse position when space is pressed (bad behavior)
+	if win.Pressed(pixelgl.KeyEnter) {
+		// move to the mouse position when enter is pressed (bad behavior)
 		update.Pos = win.MousePosition()
 	}
 
