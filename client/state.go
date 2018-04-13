@@ -104,7 +104,7 @@ func RecordWorker() {
 			posError := playerPos.Sub(update.Pos).Len() / playerPos.Len()
 			angleError := math.Abs(playerAngle-update.Angle) / math.Abs(playerAngle)
 
-			if posError > .1 || angleError > .1 {
+			if posError > .5 || angleError > .5 {
 				// Ignore shots fired if they're very different from
 				// where we think the player currently is
 				log.Println("Ignoring bad shot")
@@ -129,7 +129,7 @@ func RecordWorker() {
 				distance := update.Pos.Sub(last).Len()
 				dt := update.Time.Sub(records[update.PlayerID].Time).Seconds()
 
-				if distance > 2*clientlib.PlayerSpeed*dt {
+				if distance > 10*clientlib.PlayerSpeed*dt {
 					log.Println("Ignoring bad position")
 					continue
 				}
