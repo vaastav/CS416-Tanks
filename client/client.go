@@ -389,6 +389,11 @@ func doLocalInput(dt float64) {
 		update = update.MoveUp(dt)
 	}
 
+	if win.Pressed(pixelgl.KeySpace) {
+		// move to the mouse position when space is pressed (bad behavior)
+		update.Pos = win.MousePosition()
+	}
+
 	update = update.
 		UpdateAngle(win.MousePosition()).
 		Bound(windowCfg.Bounds).

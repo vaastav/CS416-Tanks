@@ -87,6 +87,11 @@ func RecordWorker() {
 			// Remove the player if it's dead
 			delete(records, update.PlayerID)
 		case clientlib.FIRE:
+			// Trust our own updates
+			if update.PlayerID == localPlayer.ID {
+				break
+			}
+
 			// Check that player is nearby where this shot was fired
 			if records[update.PlayerID] == nil {
 				// No such player?
@@ -117,7 +122,8 @@ func RecordWorker() {
 				records[update.PlayerID] = &PlayerRecord{
 					ID: update.PlayerID,
 				}
-			} else {
+			} else if update.PlayerID != localPlayer.ID {
+				// Trust our own updates without checking them
 				// check that this new position is reasonable
 				last := records[update.PlayerID].Pos
 				distance := update.Pos.Sub(last).Len()
